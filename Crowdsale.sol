@@ -367,5 +367,6 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
         uint256 amount = bnbContributions[msg.sender];
         bnbContributions[msg.sender] = 0;
         bnbToken.transfer(msg.sender, amount);
+        token.destroy(msg.sender, token.balanceOf(msg.sender));
     }
 }
