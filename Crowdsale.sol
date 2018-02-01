@@ -174,6 +174,9 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
      * @dev Check bnb contribution time, amount and hard cap overflow
      */
     function isValidBNBContribution() internal view returns(bool) {
+        if(now < SALE_START_TIME || now > SALE_END_TIME) {
+            return false;
+        }
         if(!whiteList[msg.sender] && !privilegedList[msg.sender] && !token.limitedWallets(msg.sender)) {
             return false;
         }
@@ -361,6 +364,8 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
     function refundBNBContributor() public {
         require(bnbRefundEnabled);
         require(bnbContributions[msg.sender] > 0);
-        bnbToken.transfer(msg.sender, bnbContributions[msg.sender]);
+        uint256 amount = bnbContributions[msg.sender];
+        bnbContributions[msg.sender] = 0;
+        bnbToken.transfer(msg.sender, amount);
     }
 }
