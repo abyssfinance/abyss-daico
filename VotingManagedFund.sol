@@ -88,12 +88,12 @@ contract VotingManagedFund is Fund, IVotingManagedFund, ITokenEventListener {
      * @dev Update minVotedTokensPerc value after tap and buffer votings.
      * Set new value == 50% from current voted tokens amount
      */
-    function updateMinVotedTokens(uint256 _minVotedTokens) internal {
+    function updateMinVotedTokens(uint256 _minVotedTokensPerc) internal {
         if(minVotedTokensPerc >= MAX_VOTED_TOKEN_PERC) {
             return;
         }
-        uint256 currentPerc = safeDiv(safeMul(_minVotedTokens, 100), token.totalSupply());
-        uint256 newPerc = safeDiv(currentPerc, 2);
+
+        uint256 newPerc = safeDiv(_minVotedTokensPerc, 2);
         if(newPerc > MAX_VOTED_TOKEN_PERC) {
             minVotedTokensPerc = MAX_VOTED_TOKEN_PERC;
             return;
