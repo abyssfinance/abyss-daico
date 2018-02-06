@@ -53,6 +53,8 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
     uint256 public bonusWindow3EndTime = 0;
     uint256 public bonusWindow4EndTime = 0;
 
+    uint256 public rawTokenSupply = 0;
+
     // BNB
     IERC20Token public bnbToken;
     uint256 public BNB_HARD_CAP = 300000*10**18; // 300K BNB
@@ -259,6 +261,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
 
         uint256 tokenBonusAmount = 0;
         uint256 tokenAmount = safeDiv(safeMul(amountBNB, BNB_TOKEN_PRICE_NUM), BNB_TOKEN_PRICE_DENOM);
+        rawTokenSupply = safeAdd(rawTokenSupply, tokenAmount);
         if(bonusNum > 0) {
             tokenBonusAmount = safeDiv(safeMul(tokenAmount, bonusNum), bonusDenom);
         }
@@ -285,6 +288,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
         (bonusNum, bonusDenom) = getBonus();
         uint256 tokenBonusAmount = 0;
         uint256 tokenAmount = safeDiv(safeMul(msg.value, TOKEN_PRICE_NUM), TOKEN_PRICE_DENOM);
+        rawTokenSupply = safeAdd(rawTokenSupply, tokenAmount);
 
         if(bonusNum > 0) {
             tokenBonusAmount = safeDiv(safeMul(tokenAmount, bonusNum), bonusDenom);
@@ -325,7 +329,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
             bnbToken.transfer(bnbTokenWallet, bnbToken.balanceOf(address(this)));
 
             // Referral
-            uint256 referralTokenAmount = safeDiv(token.totalSupply(), 10);
+            uint256 referralTokenAmount = safeDiv(rawTokenSupply, 10);
             token.issue(referralTokenWallet, referralTokenAmount);
 
             uint256 suppliedTokenAmount = token.totalSupply();
@@ -333,7 +337,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
             // Reserve
             uint256 reservedTokenAmount = safeDiv(safeMul(suppliedTokenAmount, 3), 10); // 18%
             token.issue(address(lockedTokens), reservedTokenAmount);
-            lockedTokens.addTokens(reserveTokenWallet, reservedTokenAmount,  now + 183 days);
+            lockedTokens.addTokens(reserveTokenWallet, reservedTokenAmount, now + 183 days);
 
             // Advisors
             uint256 advisorsTokenAmount = safeDiv(suppliedTokenAmount, 10); // 6%
@@ -342,8 +346,8 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
             // Company
             uint256 companyTokenAmount = safeDiv(suppliedTokenAmount, 4); // 15%
             token.issue(address(lockedTokens), companyTokenAmount);
-            lockedTokens.addTokens(companyTokenWallet, safeDiv(companyTokenAmount, 2),  now + 183 days);
-            lockedTokens.addTokens(companyTokenWallet, safeDiv(companyTokenAmount, 2),  now + 365 days);
+            lockedTokens.addTokens(companyTokenWallet, companyTokenAmount, now + 365 days);
+
 
             // Bounty
             uint256 bountyTokenAmount = safeDiv(suppliedTokenAmount, 60); // 1%

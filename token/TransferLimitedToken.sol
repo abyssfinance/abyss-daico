@@ -47,11 +47,11 @@ contract TransferLimitedToken is ManagedToken {
     }
 
     /**
-     * @dev Enable/disable transfer limit manually. Can be called only by manager
+     * @dev Disable transfer limit manually. Can be called only by manager
      */
-    function setLimitState(bool _isLimitEnabled) public {
+    function disableLimit() public {
         require(msg.sender == limitedWalletsManager);
-        isLimitEnabled = _isLimitEnabled;
+        isLimitEnabled = false;
     }
 
     /**

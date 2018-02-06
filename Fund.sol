@@ -26,9 +26,7 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
     address public reserveTokenWallet;
     address public bountyTokenWallet;
     address public companyTokenWallet;
-
-
-    uint256 public refundTokenPrice = 0;
+    address public advisorTokenWallet;
 
     uint256 public tap;
     uint256 public lastWithdrawTime = 0;
@@ -50,14 +48,25 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
      * @param _companyTokenWallet Company wallet address
      * @param _reserveTokenWallet Reserve wallet address
      * @param _bountyTokenWallet Bounty wallet address
+     * @param _advisorTokenWallet Advisor wallet address
      * @param _owners Contract owners
      */
-    function Fund(address _teamWallet, address _referralTokenWallet, address _companyTokenWallet, address _reserveTokenWallet, address _bountyTokenWallet, address[] _owners) public {
+    function Fund(
+        address _teamWallet,
+        address _referralTokenWallet,
+        address _companyTokenWallet,
+        address _reserveTokenWallet,
+        address _bountyTokenWallet,
+        address _advisorTokenWallet,
+        address[] _owners
+    ) public
+    {
         teamWallet = _teamWallet;
         referralTokenWallet = _referralTokenWallet;
+        companyTokenWallet = _companyTokenWallet;
         reserveTokenWallet = _reserveTokenWallet;
         bountyTokenWallet = _bountyTokenWallet;
-        companyTokenWallet = _companyTokenWallet;
+        advisorTokenWallet = _advisorTokenWallet;
         _setOwners(_owners);
     }
 
@@ -182,8 +191,8 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
         token.destroy(companyTokenWallet, token.balanceOf(companyTokenWallet));
         token.destroy(reserveTokenWallet, token.balanceOf(reserveTokenWallet));
         token.destroy(bountyTokenWallet, token.balanceOf(bountyTokenWallet));
-
-        refundTokenPrice = safeDiv(this.balance, safeAdd(safeDiv(token.totalSupply(), 10**18), 1));
+        token.destroy(referralTokenWallet, token.balanceOf(referralTokenWallet));
+        token.destroy(advisorTokenWallet, token.balanceOf(advisorTokenWallet));
     }
 
     /**
@@ -192,13 +201,16 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
     */
     function refundTokenHolder() public {
         require(state == FundState.Refund);
-        require(refundTokenPrice > 0);
 
         uint256 tokenBalance = token.balanceOf(msg.sender);
         require(tokenBalance > 0);
+        uint256 refundAmount = safeDiv(
+                safeMul(tokenBalance, safeDiv(safeMul(this.balance, 10**18), token.totalSupply())),
+                10**18
+        );
+        require(refundAmount > 0);
 
         token.destroy(msg.sender, token.balanceOf(msg.sender));
-        uint256 refundAmount = safeDiv(safeMul(tokenBalance, refundTokenPrice), 10**18);
         msg.sender.transfer(refundAmount);
 
         RefundHolder(msg.sender, refundAmount, tokenBalance, now);

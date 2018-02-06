@@ -49,9 +49,10 @@ contract VotingManagedFund is Fund, IVotingManagedFund, ITokenEventListener {
         address _companyTokenWallet,
         address _reserveTokenWallet,
         address _bountyTokenWallet,
+        address _advisorTokenWallet,
         address[] _owners
         ) public
-    Fund(_teamWallet, _referralTokenWallet, _companyTokenWallet, _reserveTokenWallet, _bountyTokenWallet, _owners)
+    Fund(_teamWallet, _referralTokenWallet, _companyTokenWallet, _reserveTokenWallet, _bountyTokenWallet, _advisorTokenWallet, _owners)
     {
 
     }
