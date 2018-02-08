@@ -116,7 +116,7 @@ contract ManagedToken is ERC20Token, MultiOwnable {
     * @param _addedValue The amount of tokens to increase the allowance by.
     */
     function increaseApproval(address _spender, uint _addedValue) public returns (bool) {
-        allowed[msg.sender][_spender] = allowed[msg.sender][_spender].add(_addedValue);
+        allowed[msg.sender][_spender] = safeAdd(allowed[msg.sender][_spender], _addedValue);
         Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
         return true;
     }
