@@ -7,11 +7,27 @@ import './ManagedToken.sol';
  * @dev Token with ability to limit transfers within wallets included in limitedWallets list for certain period of time
  */
 contract TransferLimitedToken is ManagedToken {
+    uint256 public constant LIMIT_TRANSFERS_PERIOD = 365 days;
+
     mapping(address => bool) public limitedWallets;
-    uint256 public constant limitTransfersPeriod = 365 days;
     uint256 public limitEndDate;
     address public limitedWalletsManager;
     bool public isLimitEnabled;
+
+    modifier onlyManager() {
+        require(msg.sender == limitedWalletsManager);
+        _;
+    }
+
+    /**
+     * @dev Check if transfer between addresses is available
+     * @param _from From address
+     * @param _to To address
+     */
+    modifier canTransfer(address _from, address _to)  {
+        require(now >= limitEndDate || !isLimitEnabled || (!limitedWallets[_from] && !limitedWallets[_to]));
+        _;
+    }
 
     /**
      * @dev TransferLimitedToken constructor
@@ -23,7 +39,7 @@ contract TransferLimitedToken is ManagedToken {
     function TransferLimitedToken(uint256 _limitStartDate, address _listener, address[] _owners, address _limitedWalletsManager) public
         ManagedToken(_listener, _owners)
     {
-        limitEndDate = _limitStartDate + limitTransfersPeriod;
+        limitEndDate = _limitStartDate + LIMIT_TRANSFERS_PERIOD;
         isLimitEnabled = true;
         limitedWalletsManager = _limitedWalletsManager;
     }
@@ -32,8 +48,7 @@ contract TransferLimitedToken is ManagedToken {
      * @dev Add address to limitedWallets
      * @dev Can be called only by manager
      */
-    function addLimitedWalletAddress(address _wallet) public {
-        require(msg.sender == limitedWalletsManager);
+    function addLimitedWalletAddress(address _wallet) public onlyManager {
         limitedWallets[_wallet] = true;
     }
 
@@ -41,47 +56,26 @@ contract TransferLimitedToken is ManagedToken {
      * @dev Del address from limitedWallets
      * @dev Can be called only by manager
      */
-    function delLimitedWalletAddress(address _wallet) public {
-        require(msg.sender == limitedWalletsManager);
+    function delLimitedWalletAddress(address _wallet) public onlyManager {
         limitedWallets[_wallet] = false;
     }
 
     /**
      * @dev Disable transfer limit manually. Can be called only by manager
      */
-    function disableLimit() public {
-        require(msg.sender == limitedWalletsManager);
+    function disableLimit() public onlyManager {
         isLimitEnabled = false;
     }
 
-    /**
-     * @dev Check if transfer between addresses is available
-     * @param _from From address
-     * @param _to To address
-     * @return True if transfer is available else false
-     */
-    function canTransfer(address _from, address _to) public view returns(bool) {
-        if(now >= limitEndDate || !isLimitEnabled) {
-            return true;
-        }
-        if(!limitedWallets[_from] && !limitedWallets[_to]) {
-            return true;
-        }
-        return false;
-    }
-
-    function transfer(address _to, uint256 _value) public returns (bool) {
-        require(canTransfer(msg.sender, _to));
+    function transfer(address _to, uint256 _value) public canTransfer(msg.sender, _to) returns (bool) {
         return super.transfer(_to, _value);
     }
 
-    function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
-        require(canTransfer(_from, _to));
+    function transferFrom(address _from, address _to, uint256 _value) public canTransfer(_from, _to) returns (bool) {
         return super.transferFrom(_from, _to, _value);
     }
 
-    function approve(address _spender, uint256 _value) public returns (bool) {
-        require(canTransfer(msg.sender, _spender));
+    function approve(address _spender, uint256 _value) public canTransfer(msg.sender, _spender) returns (bool) {
         return super.approve(_spender,_value);
     }
 }

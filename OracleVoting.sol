@@ -21,7 +21,6 @@ contract OracleVoting is SafeMath {
     uint256 public minTotalVoted;
     uint256 public yesCounter = 0;
     uint256 public noCounter = 0;
-    uint256 public totalVoted = 0;
 
     mapping(address => bool) public oracles;
     mapping(address => OracleVote) public oracleVote;
@@ -68,7 +67,6 @@ contract OracleVoting is SafeMath {
         } else {
             noCounter = safeAdd(noCounter, 1);
         }
-        totalVoted = safeAdd(totalVoted, 1);
 
         oracleVote[msg.sender].time = now;
         oracleVote[msg.sender].agree = agree;
@@ -86,7 +84,6 @@ contract OracleVoting is SafeMath {
         }
         oracleVote[msg.sender].time = 0;
         oracleVote[msg.sender].agree = false;
-        totalVoted = safeSub(totalVoted, 1);
     }
 
     /**
@@ -102,7 +99,7 @@ contract OracleVoting is SafeMath {
     }
 
     function isSubjectApproved() internal view returns(bool){
-        if(safeSub(yesCounter, noCounter) > 0 && totalVoted >= minTotalVoted) {
+        if(safeSub(yesCounter, noCounter) > 0 && safeAdd(yesCounter, noCounter) >= minTotalVoted) {
             return true;
         }
         return false;

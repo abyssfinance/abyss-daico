@@ -119,17 +119,17 @@ contract BaseVoting is SafeMath {
         if(token.balanceOf(tokenHolder) >= votesByAddress[tokenHolder].weight) {
             return;
         }
-
+        uint256 voiceWeight = amount;
         if(amount > votesByAddress[tokenHolder].weight) {
-            amount = votesByAddress[tokenHolder].weight;
+            voiceWeight = votesByAddress[tokenHolder].weight;
         }
 
         if(votesByAddress[tokenHolder].agree) {
-            yesCounter = safeSub(yesCounter, amount);
+            yesCounter = safeSub(yesCounter, voiceWeight);
         } else {
-            noCounter = safeSub(noCounter, amount);
+            noCounter = safeSub(noCounter, voiceWeight);
         }
-        votesByAddress[tokenHolder].weight = safeSub(votesByAddress[tokenHolder].weight, amount);
+        votesByAddress[tokenHolder].weight = safeSub(votesByAddress[tokenHolder].weight, voiceWeight);
     }
 
     /**

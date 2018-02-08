@@ -101,7 +101,6 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
      * @dev Callback is called after crowdsale finalization if soft cap is reached
      */
     function onCrowdsaleEnd() external onlyCrowdsale {
-        require(msg.sender == crowdsaleAddress);
         state = FundState.TeamWithdraw;
         lastWithdrawTime = now;
         tap = INITIAL_TAP;
@@ -205,12 +204,12 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
         uint256 tokenBalance = token.balanceOf(msg.sender);
         require(tokenBalance > 0);
         uint256 refundAmount = safeDiv(
-                safeMul(tokenBalance, safeDiv(safeMul(this.balance, 10**18), token.totalSupply())),
-                10**18
+                safeMul(tokenBalance, safeDiv(safeMul(this.balance, token.decimals()), token.totalSupply())),
+                token.decimals()
         );
         require(refundAmount > 0);
 
-        token.destroy(msg.sender, token.balanceOf(msg.sender));
+        token.destroy(msg.sender, tokenBalance);
         msg.sender.transfer(refundAmount);
 
         RefundHolder(msg.sender, refundAmount, tokenBalance, now);

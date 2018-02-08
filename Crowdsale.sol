@@ -12,6 +12,9 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
     uint256 public constant TOKEN_PRICE_NUM = 5000;
     uint256 public constant TOKEN_PRICE_DENOM = 1;
 
+    uint256 public constant TG_BONUS_NUM = 3;
+    uint256 public constant TG_BONUS_DENOM = 100;
+
     uint256 public constant ETHER_MIN_CONTRIB = 0.1 ether;
     uint256 public constant ETHER_MAX_CONTRIB = 10 ether;
 
@@ -57,8 +60,8 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
 
     // BNB
     IERC20Token public bnbToken;
-    uint256 public BNB_HARD_CAP = 300000*10**18; // 300K BNB
-    uint256 public BNB_MIN_CONTRIB = 1000*10**18; // 1K BNB
+    uint256 public BNB_HARD_CAP = 300000 ether; // 300K BNB
+    uint256 public BNB_MIN_CONTRIB = 1000 ether; // 1K BNB
     mapping(address => uint256) public bnbContributions;
     uint256 public totalBNBContributed = 0;
     uint256 public constant BNB_TOKEN_PRICE_NUM = 50; // Price will be set right before Token Sale
@@ -268,7 +271,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
 
         if(telegramMembers[msg.sender] && !telegramMemberHadPayment[msg.sender]) {
             telegramMemberHadPayment[msg.sender] = true;
-            uint256 telegramBonus = safeDiv(safeMul(tokenAmount, 3), 100);
+            uint256 telegramBonus = safeDiv(safeMul(tokenAmount, TG_BONUS_NUM), TG_BONUS_DENOM);
             tokenBonusAmount = safeAdd(tokenBonusAmount, telegramBonus);
         }
 
@@ -296,7 +299,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
 
         if(telegramMembers[msg.sender] && !telegramMemberHadPayment[msg.sender]) {
             telegramMemberHadPayment[msg.sender] = true;
-            uint256 telegramBonus = safeDiv(safeMul(tokenAmount, 3), 100);
+            uint256 telegramBonus = safeDiv(safeMul(tokenAmount, TG_BONUS_NUM), TG_BONUS_DENOM);
             tokenBonusAmount = safeAdd(tokenBonusAmount, telegramBonus);
         }
 
