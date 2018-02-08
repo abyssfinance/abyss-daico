@@ -11,15 +11,22 @@ import './ITokenEventListener.sol';
  */
 contract ManagedToken is ERC20Token, MultiOwnable {
     bool public allowTransfers = false;
+    bool public issuanceFinished = false;
 
     ITokenEventListener public eventListener;
 
     event AllowTransfersChanged(bool _newState);
-    event Issue(address _to, uint256 _value);
-    event Destroy(address _from, uint256 _value);
+    event Issue(address indexed _to, uint256 _value);
+    event Destroy(address indexed _from, uint256 _value);
+    event IssuanceFinished();
 
     modifier transfersAllowed() {
         assert(allowTransfers);
+        _;
+    }
+
+    modifier canIssue() {
+        assert(!issuanceFinished);
         _;
     }
 
@@ -84,7 +91,7 @@ contract ManagedToken is ERC20Token, MultiOwnable {
      * @param _to Wallet address
      * @param _value Amount of tokens
      */
-    function issue(address _to, uint256 _value) external onlyOwner {
+    function issue(address _to, uint256 _value) external onlyOwner canIssue {
         totalSupply = safeAdd(totalSupply, _value);
         balances[_to] = safeAdd(balances[_to], _value);
         Issue(_to, _value);
@@ -106,15 +113,15 @@ contract ManagedToken is ERC20Token, MultiOwnable {
     }
 
     /**
-    * @dev Increase the amount of tokens that an owner allowed to a spender.
-    *
-    * approve should be called when allowed[_spender] == 0. To increment
-    * allowed value is better to use this function to avoid 2 calls (and wait until
-    * the first transaction is mined)
-    * From OpenZeppelin StandardToken.sol
-    * @param _spender The address which will spend the funds.
-    * @param _addedValue The amount of tokens to increase the allowance by.
-    */
+     * @dev Increase the amount of tokens that an owner allowed to a spender.
+     *
+     * approve should be called when allowed[_spender] == 0. To increment
+     * allowed value is better to use this function to avoid 2 calls (and wait until
+     * the first transaction is mined)
+     * From OpenZeppelin StandardToken.sol
+     * @param _spender The address which will spend the funds.
+     * @param _addedValue The amount of tokens to increase the allowance by.
+     */
     function increaseApproval(address _spender, uint _addedValue) public returns (bool) {
         allowed[msg.sender][_spender] = safeAdd(allowed[msg.sender][_spender], _addedValue);
         Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
@@ -122,15 +129,15 @@ contract ManagedToken is ERC20Token, MultiOwnable {
     }
 
     /**
-    * @dev Decrease the amount of tokens that an owner allowed to a spender.
-    *
-    * approve should be called when allowed[_spender] == 0. To decrement
-    * allowed value is better to use this function to avoid 2 calls (and wait until
-    * the first transaction is mined)
-    * From OpenZeppelin StandardToken.sol
-    * @param _spender The address which will spend the funds.
-    * @param _subtractedValue The amount of tokens to decrease the allowance by.
-    */
+     * @dev Decrease the amount of tokens that an owner allowed to a spender.
+     *
+     * approve should be called when allowed[_spender] == 0. To decrement
+     * allowed value is better to use this function to avoid 2 calls (and wait until
+     * the first transaction is mined)
+     * From OpenZeppelin StandardToken.sol
+     * @param _spender The address which will spend the funds.
+     * @param _subtractedValue The amount of tokens to decrease the allowance by.
+     */
     function decreaseApproval(address _spender, uint _subtractedValue) public returns (bool) {
         uint oldValue = allowed[msg.sender][_spender];
         if (_subtractedValue > oldValue) {
@@ -139,6 +146,16 @@ contract ManagedToken is ERC20Token, MultiOwnable {
             allowed[msg.sender][_spender] = safeSub(oldValue, _subtractedValue);
         }
         Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
+        return true;
+    }
+
+    /**
+     * @dev Finish token issuance
+     * @return True if success
+     */
+    function finishIssuance() public onlyOwner returns (bool) {
+        issuanceFinished = true;
+        IssuanceFinished();
         return true;
     }
 }

@@ -363,6 +363,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
             fund.enableCrowdsaleRefund();
             bnbRefundEnabled = true;
         }
+        token.finishIssuance();
     }
 
     /**
