@@ -28,6 +28,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
     uint256 public constant SALE_START_TIME = 1517961600; // 07.02.2018
     uint256 public constant SALE_END_TIME = 1522540800; // 01.04.2018
     uint256 public constant HARD_CAP_MERGE_TIME = 1519862400; // 01.03.2018
+    uint256 public constant MAX_CONTRIB_CHECK_END_TIME = SALE_START_TIME + 7 days;
 
     uint256 public tokenPriceNum = 0;
     uint256 public tokenPriceDenom = 0;
@@ -40,6 +41,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
     mapping(address => bool) public privilegedList;
     mapping(address => bool) public telegramMembers;
     mapping(address => bool) public telegramMemberHadPayment;
+    mapping(address => uint256) public userTotalContributed;
 
     address public bnbTokenWallet;
     address public referralTokenWallet;
@@ -127,21 +129,22 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
             return false;
 
         }
+        uint256 currentUserContribution = safeAdd(msg.value, userTotalContributed[msg.sender]);
         if(whiteList[msg.sender] && msg.value >= ETHER_MIN_CONTRIB) {
-            if(now <= SALE_START_TIME + 7 days && msg.value > ETHER_MAX_CONTRIB ) {
+            if(now <= MAX_CONTRIB_CHECK_END_TIME && currentUserContribution > ETHER_MAX_CONTRIB ) {
                     return false;
             }
             return true;
 
         }
         if(privilegedList[msg.sender] && msg.value >= ETHER_MIN_CONTRIB_PRIVATE) {
-            if(now <= SALE_START_TIME + 7 days && msg.value > ETHER_MAX_CONTRIB_PRIVATE ) {
+            if(now <= MAX_CONTRIB_CHECK_END_TIME && currentUserContribution > ETHER_MAX_CONTRIB_PRIVATE ) {
                     return false;
             }
             return true;
         }
         if(token.limitedWallets(msg.sender) && msg.value >= ETHER_MIN_CONTRIB_USA) {
-            if(now <= SALE_START_TIME + 7 days && msg.value > ETHER_MAX_CONTRIB_USA) {
+            if(now <= MAX_CONTRIB_CHECK_END_TIME && currentUserContribution > ETHER_MAX_CONTRIB_USA) {
                     return false;
             }
             return true;
@@ -300,6 +303,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
         uint256 bonusDenom = 100;
         (bonusNum, bonusDenom) = getBonus();
         uint256 tokenBonusAmount = 0;
+        userTotalContributed[msg.sender] = safeAdd(userTotalContributed[msg.sender], msg.value);
         uint256 tokenAmount = safeDiv(safeMul(msg.value, tokenPriceNum), tokenPriceDenom);
         rawTokenSupply = safeAdd(rawTokenSupply, tokenAmount);
 
