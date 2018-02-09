@@ -9,9 +9,6 @@ import './Pausable.sol';
 
 
 contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
-    uint256 public constant TOKEN_PRICE_NUM = 5000;
-    uint256 public constant TOKEN_PRICE_DENOM = 1;
-
     uint256 public constant TG_BONUS_NUM = 3;
     uint256 public constant TG_BONUS_DENOM = 100;
 
@@ -32,6 +29,9 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
     uint256 public constant SALE_END_TIME = 1522540800; // 01.04.2018
     uint256 public constant HARD_CAP_MERGE_TIME = 1519862400; // 01.03.2018
 
+    uint256 public tokenPriceNum = 0;
+    uint256 public tokenPriceDenom = 0;
+    
     TransferLimitedToken public token;
     ICrowdsaleFund public fund;
     LockedTokens public lockedTokens;
@@ -64,8 +64,8 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
     uint256 public BNB_MIN_CONTRIB = 1000 ether; // 1K BNB
     mapping(address => uint256) public bnbContributions;
     uint256 public totalBNBContributed = 0;
-    uint256 public constant BNB_TOKEN_PRICE_NUM = 50; // Price will be set right before Token Sale
-    uint256 public constant BNB_TOKEN_PRICE_DENOM = 1;
+    uint256 public constant BNB_tokenPriceNum = 50; // Price will be set right before Token Sale
+    uint256 public constant BNB_tokenPriceDenom = 1;
     bool public bnbRefundEnabled = false;
 
     event LogContribution(address contributor, uint256 amountWei, uint256 tokenAmount, uint256 tokenBonus, uint256 timestamp);
@@ -113,10 +113,10 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
         reserveTokenWallet = _reserveTokenWallet;
         bountyTokenWallet = _bountyTokenWallet;
 
-        bonusWindow1EndTime = SALE_START_TIME + 1 days;
+        bonusWindow1EndTime = SALE_START_TIME + 2 days;
         bonusWindow2EndTime = SALE_START_TIME + 7 days;
-        bonusWindow3EndTime = SALE_START_TIME + 22 days;
-        bonusWindow4EndTime = SALE_START_TIME + 40 days;
+        bonusWindow3EndTime = SALE_START_TIME + 14 days;
+        bonusWindow4EndTime = SALE_START_TIME + 21 days;
     }
 
     /**
@@ -173,6 +173,16 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
             return true;
         }
         return false;
+    }
+
+    /**
+     * @dev Set token price once before start of crowdsale
+     */
+    function setTokenPrice(uint256 _tokenPriceNum, uint256 _tokenPriceDenom) public onlyOwner {
+        require(tokenPriceNum == 0 && tokenPriceDenom == 0);
+        require(tokenPriceDenom != 0);
+        tokenPriceNum = _tokenPriceNum;
+        tokenPriceDenom = _tokenPriceDenom;
     }
 
     /**
@@ -263,7 +273,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
         bnbContributions[msg.sender] = safeAdd(bnbContributions[msg.sender], amountBNB);
 
         uint256 tokenBonusAmount = 0;
-        uint256 tokenAmount = safeDiv(safeMul(amountBNB, BNB_TOKEN_PRICE_NUM), BNB_TOKEN_PRICE_DENOM);
+        uint256 tokenAmount = safeDiv(safeMul(amountBNB, BNB_tokenPriceNum), BNB_tokenPriceDenom);
         rawTokenSupply = safeAdd(rawTokenSupply, tokenAmount);
         if(bonusNum > 0) {
             tokenBonusAmount = safeDiv(safeMul(tokenAmount, bonusNum), bonusDenom);
@@ -290,7 +300,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
         uint256 bonusDenom = 100;
         (bonusNum, bonusDenom) = getBonus();
         uint256 tokenBonusAmount = 0;
-        uint256 tokenAmount = safeDiv(safeMul(msg.value, TOKEN_PRICE_NUM), TOKEN_PRICE_DENOM);
+        uint256 tokenAmount = safeDiv(safeMul(msg.value, tokenPriceNum), tokenPriceDenom);
         rawTokenSupply = safeAdd(rawTokenSupply, tokenAmount);
 
         if(bonusNum > 0) {
