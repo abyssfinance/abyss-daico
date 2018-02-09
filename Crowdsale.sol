@@ -183,7 +183,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
      */
     function setTokenPrice(uint256 _tokenPriceNum, uint256 _tokenPriceDenom) public onlyOwner {
         require(tokenPriceNum == 0 && tokenPriceDenom == 0);
-        require(tokenPriceDenom != 0);
+        require(_tokenPriceDenom != 0);
         tokenPriceNum = _tokenPriceNum;
         tokenPriceDenom = _tokenPriceDenom;
     }
