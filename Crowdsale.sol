@@ -193,10 +193,13 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
      * @dev Check bnb contribution time, amount and hard cap overflow
      */
     function isValidBNBContribution() internal view returns(bool) {
+        if(token.limitedWallets(msg.sender)) {
+            return false;
+        }
         if(now < SALE_START_TIME || now > SALE_END_TIME) {
             return false;
         }
-        if(!whiteList[msg.sender] && !privilegedList[msg.sender] && !token.limitedWallets(msg.sender)) {
+        if(!whiteList[msg.sender] && !privilegedList[msg.sender]) {
             return false;
         }
         uint256 amount = bnbToken.allowance(msg.sender, address(this));
