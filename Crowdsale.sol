@@ -9,6 +9,12 @@ import './Pausable.sol';
 
 
 contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
+    enum TelegramBonusState {
+        Unavailable,
+        Active,
+        Applied
+    }
+
     uint256 public constant TG_BONUS_NUM = 3;
     uint256 public constant TG_BONUS_DENOM = 100;
 
@@ -27,6 +33,12 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
 
     uint256 public constant SALE_START_TIME = 1517961600; // 07.02.2018
     uint256 public constant SALE_END_TIME = 1522540800; // 01.04.2018
+
+    uint256 public constant BONUS_WINDOW_1_END_TIME = SALE_START_TIME + 2 days;
+    uint256 public constant BONUS_WINDOW_2_END_TIME = SALE_START_TIME + 7 days;
+    uint256 public constant BONUS_WINDOW_3_END_TIME = SALE_START_TIME + 14 days;
+    uint256 public constant BONUS_WINDOW_4_END_TIME = SALE_START_TIME + 21 days;
+
     uint256 public constant HARD_CAP_MERGE_TIME = 1519862400; // 01.03.2018
     uint256 public constant MAX_CONTRIB_CHECK_END_TIME = SALE_START_TIME + 7 days;
 
@@ -39,8 +51,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
 
     mapping(address => bool) public whiteList;
     mapping(address => bool) public privilegedList;
-    mapping(address => bool) public telegramMembers;
-    mapping(address => bool) public telegramMemberHadPayment;
+    mapping(address => TelegramBonusState) public telegramMemberBonusState;
     mapping(address => uint256) public userTotalContributed;
 
     address public bnbTokenWallet;
@@ -52,11 +63,6 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
 
     uint256 public totalWorldEtherContributed = 0;
     uint256 public totalUSAEtherContributed = 0;
-
-    uint256 public bonusWindow1EndTime = 0;
-    uint256 public bonusWindow2EndTime = 0;
-    uint256 public bonusWindow3EndTime = 0;
-    uint256 public bonusWindow4EndTime = 0;
 
     uint256 public rawTokenSupply = 0;
 
@@ -114,11 +120,6 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
         companyTokenWallet = _companyTokenWallet;
         reserveTokenWallet = _reserveTokenWallet;
         bountyTokenWallet = _bountyTokenWallet;
-
-        bonusWindow1EndTime = SALE_START_TIME + 2 days;
-        bonusWindow2EndTime = SALE_START_TIME + 7 days;
-        bonusWindow3EndTime = SALE_START_TIME + 14 days;
-        bonusWindow4EndTime = SALE_START_TIME + 21 days;
     }
 
     /**
@@ -183,7 +184,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
      */
     function setTokenPrice(uint256 _tokenPriceNum, uint256 _tokenPriceDenom) public onlyOwner {
         require(tokenPriceNum == 0 && tokenPriceDenom == 0);
-        require(_tokenPriceDenom != 0);
+        require(_tokenPriceNum > 0 && _tokenPriceDenom > 0);
         tokenPriceNum = _tokenPriceNum;
         tokenPriceDenom = _tokenPriceDenom;
     }
@@ -213,13 +214,13 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
         uint256 numerator = 0;
         uint256 denominator = 100;
 
-        if(now < bonusWindow1EndTime) {
+        if(now < BONUS_WINDOW_1_END_TIME) {
             numerator = 25;
-        } else if(now < bonusWindow2EndTime) {
+        } else if(now < BONUS_WINDOW_2_END_TIME) {
             numerator = 15;
-        } else if(now < bonusWindow3EndTime) {
+        } else if(now < BONUS_WINDOW_3_END_TIME) {
             numerator = 10;
-        } else if(now < bonusWindow4EndTime) {
+        } else if(now < BONUS_WINDOW_4_END_TIME) {
             numerator = 5;
         } else {
             numerator = 0;
@@ -239,7 +240,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
      * @dev Add wallet to telegram members. For contract owner only.
      */
     function addTelegramMember(address _wallet) public onlyOwner {
-        telegramMembers[_wallet] = true;
+        telegramMemberBonusState[_wallet] = TelegramBonusState.Active;
     }
 
     /**
@@ -282,8 +283,8 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
             tokenBonusAmount = safeDiv(safeMul(tokenAmount, bonusNum), bonusDenom);
         }
 
-        if(telegramMembers[msg.sender] && !telegramMemberHadPayment[msg.sender]) {
-            telegramMemberHadPayment[msg.sender] = true;
+        if(telegramMemberBonusState[msg.sender] ==  TelegramBonusState.Active) {
+            telegramMemberBonusState[msg.sender] = TelegramBonusState.Applied;
             uint256 telegramBonus = safeDiv(safeMul(tokenAmount, TG_BONUS_NUM), TG_BONUS_DENOM);
             tokenBonusAmount = safeAdd(tokenBonusAmount, telegramBonus);
         }
@@ -311,8 +312,8 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
             tokenBonusAmount = safeDiv(safeMul(tokenAmount, bonusNum), bonusDenom);
         }
 
-        if(telegramMembers[msg.sender] && !telegramMemberHadPayment[msg.sender]) {
-            telegramMemberHadPayment[msg.sender] = true;
+        if(telegramMemberBonusState[msg.sender] ==  TelegramBonusState.Active) {
+            telegramMemberBonusState[msg.sender] = TelegramBonusState.Applied;
             uint256 telegramBonus = safeDiv(safeMul(tokenAmount, TG_BONUS_NUM), TG_BONUS_DENOM);
             tokenBonusAmount = safeAdd(tokenBonusAmount, telegramBonus);
         }

@@ -51,7 +51,7 @@ contract BaseVoting is SafeMath {
      */
     function BaseVoting(address _tokenAddress, address _fundAddress, uint256 _startTime, uint256 _endTime, uint256 _minTokensPerc) public {
         require(_tokenAddress != address(0));
-        require(_startTime > now && _endTime > startTime);
+        require(_startTime > now && _endTime > _startTime);
 
         token = IERC20Token(_tokenAddress);
         fundAddress = _fundAddress;
