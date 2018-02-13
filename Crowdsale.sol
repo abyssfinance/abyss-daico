@@ -39,7 +39,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
     uint256 public constant BONUS_WINDOW_3_END_TIME = SALE_START_TIME + 14 days;
     uint256 public constant BONUS_WINDOW_4_END_TIME = SALE_START_TIME + 21 days;
 
-    uint256 public constant HARD_CAP_MERGE_TIME = 1519862400; // 01.03.2018
+    uint256 public constant HARD_CAP_MERGE_TIME = SALE_START_TIME + 15 days;
     uint256 public constant MAX_CONTRIB_CHECK_END_TIME = SALE_START_TIME + 7 days;
 
     uint256 public tokenPriceNum = 0;
