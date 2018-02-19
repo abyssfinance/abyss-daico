@@ -28,8 +28,6 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
     uint256 public constant ETHER_MAX_CONTRIB_USA = 100 ether;
 
     uint256 public constant SOFT_CAP = 5000 ether;
-    uint256 public constant HARD_CAP = 30000 ether; // World
-    uint256 public constant USA_HARD_CAP = 20000 ether; // USA
 
     uint256 public constant SALE_START_TIME = 1517961600; // 07.02.2018
     uint256 public constant SALE_END_TIME = 1522540800; // 01.04.2018
@@ -74,6 +72,8 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
     uint256 public totalBNBContributed = 0;
     uint256 public constant BNB_tokenPriceNum = 50; // Price will be set right before Token Sale
     uint256 public constant BNB_tokenPriceDenom = 1;
+    uint256 public hardCap = 0; // World hard cap will be set right before Token Sale
+    uint256 public USAHardCap = 0; // USA hard cap will be set right before Token Sale
     bool public bnbRefundEnabled = false;
 
     event LogContribution(address contributor, uint256 amountWei, uint256 tokenAmount, uint256 tokenBonus, uint256 timestamp);
@@ -160,18 +160,18 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
     function validateCap() internal view returns(bool){
         if(now <= HARD_CAP_MERGE_TIME) {
             if(token.limitedWallets(msg.sender)) {
-                if(safeAdd(totalUSAEtherContributed, msg.value) <= USA_HARD_CAP) {
+                if(safeAdd(totalUSAEtherContributed, msg.value) <= USAHardCap) {
                     return true;
                 }
                 return false;
             }
-            if(safeAdd(totalWorldEtherContributed, msg.value) <= HARD_CAP) {
+            if(safeAdd(totalWorldEtherContributed, msg.value) <= hardCap) {
                 return true;
             }
             return false;
         }
 
-        uint256 totalHardCap = safeAdd(USA_HARD_CAP, HARD_CAP);
+        uint256 totalHardCap = safeAdd(USAHardCap, hardCap);
         uint256 totalEtherContributed = safeAdd(totalWorldEtherContributed, totalUSAEtherContributed);
         if(msg.value <= safeSub(totalHardCap, totalEtherContributed)) {
             return true;
@@ -187,6 +187,16 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
         require(_tokenPriceNum > 0 && _tokenPriceDenom > 0);
         tokenPriceNum = _tokenPriceNum;
         tokenPriceDenom = _tokenPriceDenom;
+    }
+
+    /**
+     * @dev Set hard caps.
+     * @param _hardCap - World hard cap (USA hard cap = 0.5 * WorldHardCap)
+     */
+    function setHardCap(uint256 _hardCap) public onlyOwner {
+        require(hardCap == 0);
+        hardCap = _hardCap;
+        USAHardCap = safeDiv(hardCap, 2);
     }
 
     /**
@@ -339,7 +349,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
      * @dev Finalize crowdsale if we reached all hard caps or current time > SALE_END_TIME
      */
     function finalizeCrowdsale() public onlyOwner {
-        uint256 totalHardCap = safeAdd(USA_HARD_CAP, HARD_CAP);
+        uint256 totalHardCap = safeAdd(USAHardCap, hardCap);
         uint256 totalEtherContributed = safeAdd(totalWorldEtherContributed, totalUSAEtherContributed);
         if(
             (totalEtherContributed >= safeSub(totalHardCap, ETHER_MIN_CONTRIB_USA) && totalBNBContributed >= safeSub(BNB_HARD_CAP, BNB_MIN_CONTRIB)) ||
