@@ -185,4 +185,8 @@ contract VotingManagedFund is Fund, IVotingManagedFund, ITokenEventListener {
         delete oracleVoting;
         delete refundVoting;
     }
+
+    function forceRefund() onlyOwner {
+        enableRefund();
+    }
 }

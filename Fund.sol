@@ -40,6 +40,7 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
     event RefundHolder(address tokenHolder, uint256 amountWei, uint256 tokenAmount, uint256 timestamp);
     event Withdraw(uint256 amountWei, uint256 timestamp);
     event BufferWithdraw(uint256 amountWei, uint256 timestamp);
+    event RefundEnabled(address initiatorAddress);
 
     /**
      * @dev Fund constructor
@@ -192,6 +193,7 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
         token.destroy(bountyTokenWallet, token.balanceOf(bountyTokenWallet));
         token.destroy(referralTokenWallet, token.balanceOf(referralTokenWallet));
         token.destroy(advisorTokenWallet, token.balanceOf(advisorTokenWallet));
+        RefundEnabled(msg.sender);
     }
 
     /**
