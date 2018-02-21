@@ -29,8 +29,8 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
 
     uint256 public constant SOFT_CAP = 5000 ether;
 
-    uint256 public constant SALE_START_TIME = 1517961600; // 07.02.2018
-    uint256 public constant SALE_END_TIME = 1522540800; // 01.04.2018
+    uint256 public constant SALE_START_TIME = 1520413200; // 07.03.2018 09:00:00 UTC
+    uint256 public constant SALE_END_TIME = 1523091600; // 07.04.2018 09:00:00 UTC
 
     uint256 public constant BONUS_WINDOW_1_END_TIME = SALE_START_TIME + 2 days;
     uint256 public constant BONUS_WINDOW_2_END_TIME = SALE_START_TIME + 7 days;

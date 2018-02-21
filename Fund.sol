@@ -203,10 +203,7 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
 
         uint256 tokenBalance = token.balanceOf(msg.sender);
         require(tokenBalance > 0);
-        uint256 refundAmount = safeDiv(
-                safeMul(tokenBalance, safeDiv(safeMul(this.balance, token.decimals()), token.totalSupply())),
-                token.decimals()
-        );
+        uint256 refundAmount = safeDiv(safeMul(tokenBalance, this.balance), token.totalSupply());
         require(refundAmount > 0);
 
         token.destroy(msg.sender, tokenBalance);
