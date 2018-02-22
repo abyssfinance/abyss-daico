@@ -186,7 +186,7 @@ contract VotingManagedFund is Fund, IVotingManagedFund, ITokenEventListener {
         delete refundVoting;
     }
 
-    function forceRefund() onlyOwner {
+    function forceRefund() public onlyOwner {
         enableRefund();
     }
 }
