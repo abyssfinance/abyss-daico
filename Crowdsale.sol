@@ -1,14 +1,16 @@
 pragma solidity ^0.4.18;
 
 import './fund/ICrowdsaleFund.sol';
+import './fund/ICrowdsaleReservationFund.sol';
 import './token/IERC20Token.sol';
 import './token/TransferLimitedToken.sol';
 import './token/LockedTokens.sol';
 import './ownership/Ownable.sol';
 import './Pausable.sol';
+import './ISimpleCrowdsale.sol';
 
 
-contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
+contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
     enum TelegramBonusState {
         Unavailable,
         Active,
@@ -27,24 +29,25 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
     uint256 public constant ETHER_MIN_CONTRIB_USA = 1 ether;
     uint256 public constant ETHER_MAX_CONTRIB_USA = 100 ether;
 
-    uint256 public constant SOFT_CAP = 5000 ether;
-
-    uint256 public constant SALE_START_TIME = 1520413200; // 07.03.2018 09:00:00 UTC
-    uint256 public constant SALE_END_TIME = 1523091600; // 07.04.2018 09:00:00 UTC
+    uint256 public constant SALE_START_TIME = 1523887200; // 16.04.2018 14:00:00 UTC
+    uint256 public constant SALE_END_TIME = 1526479200; // 16.05.2018 14:00:00 UTC
 
     uint256 public constant BONUS_WINDOW_1_END_TIME = SALE_START_TIME + 2 days;
     uint256 public constant BONUS_WINDOW_2_END_TIME = SALE_START_TIME + 7 days;
     uint256 public constant BONUS_WINDOW_3_END_TIME = SALE_START_TIME + 14 days;
     uint256 public constant BONUS_WINDOW_4_END_TIME = SALE_START_TIME + 21 days;
 
-    uint256 public constant HARD_CAP_MERGE_TIME = SALE_START_TIME + 15 days;
-    uint256 public constant MAX_CONTRIB_CHECK_END_TIME = SALE_START_TIME + 7 days;
+    uint256 public constant MAX_CONTRIB_CHECK_END_TIME = SALE_START_TIME + 1 days;
+
+    uint256 public constant BNB_TOKEN_PRICE_NUM = 50; // Price will be set right before Token Sale
+    uint256 public constant BNB_TOKEN_PRICE_DENOM = 1;
 
     uint256 public tokenPriceNum = 0;
     uint256 public tokenPriceDenom = 0;
     
     TransferLimitedToken public token;
     ICrowdsaleFund public fund;
+    ICrowdsaleReservationFund public reservationFund;
     LockedTokens public lockedTokens;
 
     mapping(address => bool) public whiteList;
@@ -54,14 +57,13 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
 
     address public bnbTokenWallet;
     address public referralTokenWallet;
+    address public developerTokenWallet;
     address public advisorsTokenWallet;
     address public companyTokenWallet;
     address public reserveTokenWallet;
     address public bountyTokenWallet;
 
-    uint256 public totalWorldEtherContributed = 0;
-    uint256 public totalUSAEtherContributed = 0;
-
+    uint256 public totalEtherContributed = 0;
     uint256 public rawTokenSupply = 0;
 
     // BNB
@@ -70,10 +72,10 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
     uint256 public BNB_MIN_CONTRIB = 1000 ether; // 1K BNB
     mapping(address => uint256) public bnbContributions;
     uint256 public totalBNBContributed = 0;
-    uint256 public constant BNB_tokenPriceNum = 50; // Price will be set right before Token Sale
-    uint256 public constant BNB_tokenPriceDenom = 1;
+
     uint256 public hardCap = 0; // World hard cap will be set right before Token Sale
-    uint256 public USAHardCap = 0; // USA hard cap will be set right before Token Sale
+    uint256 public softCap = 0; // World soft cap will be set right before Token Sale
+
     bool public bnbRefundEnabled = false;
 
     event LogContribution(address contributor, uint256 amountWei, uint256 tokenAmount, uint256 tokenBonus, uint256 timestamp);
@@ -98,8 +100,10 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
         address bnbTokenAddress,
         address tokenAddress,
         address fundAddress,
+        address reservationFundAddress,
         address _bnbTokenWallet,
         address _referralTokenWallet,
+        address _developerTokenWallet,
         address _advisorsTokenWallet,
         address _companyTokenWallet,
         address _reserveTokenWallet,
@@ -113,13 +117,22 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
         bnbToken = IERC20Token(bnbTokenAddress);
         token = TransferLimitedToken(tokenAddress);
         fund = ICrowdsaleFund(fundAddress);
+        reservationFund = ICrowdsaleReservationFund(reservationFundAddress);
 
         bnbTokenWallet = _bnbTokenWallet;
         referralTokenWallet = _referralTokenWallet;
+        developerTokenWallet = _developerTokenWallet;
         advisorsTokenWallet = _advisorsTokenWallet;
         companyTokenWallet = _companyTokenWallet;
         reserveTokenWallet = _reserveTokenWallet;
         bountyTokenWallet = _bountyTokenWallet;
+    }
+
+    /**
+     * @dev check if address can contribute
+     */
+    function isContributorInLists(address contributor) external view returns(bool) {
+        return whiteList[contributor] || privilegedList[contributor] || token.limitedWallets(contributor);
     }
 
     /**
@@ -144,6 +157,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
             }
             return true;
         }
+
         if(token.limitedWallets(msg.sender) && msg.value >= ETHER_MIN_CONTRIB_USA) {
             if(now <= MAX_CONTRIB_CHECK_END_TIME && currentUserContribution > ETHER_MAX_CONTRIB_USA) {
                     return false;
@@ -158,22 +172,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
      * @dev Check hard cap overflow
      */
     function validateCap() internal view returns(bool){
-        if(now <= HARD_CAP_MERGE_TIME) {
-            if(token.limitedWallets(msg.sender)) {
-                if(safeAdd(totalUSAEtherContributed, msg.value) <= USAHardCap) {
-                    return true;
-                }
-                return false;
-            }
-            if(safeAdd(totalWorldEtherContributed, msg.value) <= hardCap) {
-                return true;
-            }
-            return false;
-        }
-
-        uint256 totalHardCap = safeAdd(USAHardCap, hardCap);
-        uint256 totalEtherContributed = safeAdd(totalWorldEtherContributed, totalUSAEtherContributed);
-        if(msg.value <= safeSub(totalHardCap, totalEtherContributed)) {
+        if(msg.value <= safeSub(hardCap, totalEtherContributed)) {
             return true;
         }
         return false;
@@ -190,13 +189,28 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
     }
 
     /**
-     * @dev Set hard caps.
-     * @param _hardCap - World hard cap (USA hard cap = 0.5 * WorldHardCap)
+     * @dev Set hard cap.
+     * @param _hardCap - Hard cap value
      */
     function setHardCap(uint256 _hardCap) public onlyOwner {
         require(hardCap == 0);
         hardCap = _hardCap;
-        USAHardCap = safeDiv(hardCap, 2);
+    }
+
+    /**
+     * @dev Set soft cap.
+     * @param _softCap - Soft cap value
+     */
+    function setSoftCap(uint256 _softCap) public onlyOwner {
+        require(softCap == 0);
+        softCap = _softCap;
+    }
+
+    /**
+     * @dev Get soft cap amount
+     **/
+    function getSoftCap() external view returns(uint256) {
+        return softCap;
     }
 
     /**
@@ -273,8 +287,37 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
     /**
      * @dev Fallback function to receive ether contributions
      */
-    function () payable public {
-        processContribution();
+    function () payable public whenNotPaused {
+        if(whiteList[msg.sender] || privilegedList[msg.sender] || token.limitedWallets(msg.sender)) {
+            processContribution();
+        } else {
+            processReservationContribution();
+        }
+    }
+
+    function processReservationContribution() private checkCap {
+        require(now >= SALE_START_TIME && now <= SALE_END_TIME);
+        require(msg.value >= ETHER_MIN_CONTRIB);
+
+        if(now <= MAX_CONTRIB_CHECK_END_TIME) {
+            uint256 currentUserContribution = safeAdd(msg.value, reservationFund.contributionsOf(msg.sender));
+            require(currentUserContribution <= ETHER_MAX_CONTRIB);
+        }
+        uint256 bonusNum = 0;
+        uint256 bonusDenom = 100;
+        (bonusNum, bonusDenom) = getBonus();
+        uint256 tokenBonusAmount = 0;
+        uint256 tokenAmount = safeDiv(safeMul(msg.value, tokenPriceNum), tokenPriceDenom);
+
+        if(bonusNum > 0) {
+            tokenBonusAmount = safeDiv(safeMul(tokenAmount, bonusNum), bonusDenom);
+        }
+
+        reservationFund.processContribution.value(msg.value)(
+            msg.sender,
+            tokenAmount,
+            tokenBonusAmount
+        );
     }
 
     /**
@@ -290,7 +333,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
         bnbContributions[msg.sender] = safeAdd(bnbContributions[msg.sender], amountBNB);
 
         uint256 tokenBonusAmount = 0;
-        uint256 tokenAmount = safeDiv(safeMul(amountBNB, BNB_tokenPriceNum), BNB_tokenPriceDenom);
+        uint256 tokenAmount = safeDiv(safeMul(amountBNB, BNB_TOKEN_PRICE_NUM), BNB_TOKEN_PRICE_DENOM);
         rawTokenSupply = safeAdd(rawTokenSupply, tokenAmount);
         if(bonusNum > 0) {
             tokenBonusAmount = safeDiv(safeMul(tokenAmount, bonusNum), bonusDenom);
@@ -312,7 +355,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
     /**
      * @dev Process ether contribution. Calc bonuses and issue tokens to contributor.
      */
-    function processContribution() private whenNotPaused checkContribution checkCap {
+    function processContribution() private checkContribution checkCap {
         uint256 bonusNum = 0;
         uint256 bonusDenom = 100;
         (bonusNum, bonusDenom) = getBonus();
@@ -331,37 +374,50 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
             tokenBonusAmount = safeAdd(tokenBonusAmount, telegramBonus);
         }
 
+        processPayment(msg.sender, msg.value, tokenAmount, tokenBonusAmount);
+    }
+
+    function processReservationFundContribution(
+        address contributor,
+        uint256 tokenAmount,
+        uint256 tokenBonusAmount
+    ) external payable checkCap {
+        require(msg.sender == address(reservationFund));
+        require(msg.value > 0);
+
+        processPayment(contributor, msg.value, tokenAmount, tokenBonusAmount);
+    }
+
+    function processPayment(address contributor, uint256 etherAmount, uint256 tokenAmount, uint256 tokenBonusAmount) internal {
         uint256 tokenTotalAmount = safeAdd(tokenAmount, tokenBonusAmount);
 
-        token.issue(msg.sender, tokenTotalAmount);
-        fund.processContribution.value(msg.value)(msg.sender);
+        token.issue(contributor, tokenTotalAmount);
+        fund.processContribution.value(etherAmount)(contributor);
+        totalEtherContributed = safeAdd(totalEtherContributed, etherAmount);
 
-        if(token.limitedWallets(msg.sender)) {
-            totalUSAEtherContributed = safeAdd(totalUSAEtherContributed, msg.value);
-        } else {
-            totalWorldEtherContributed = safeAdd(totalWorldEtherContributed, msg.value);
-        }
-
-        LogContribution(msg.sender, msg.value, tokenAmount, tokenBonusAmount, now);
+        LogContribution(contributor, etherAmount, tokenAmount, tokenBonusAmount, now);
     }
 
     /**
-     * @dev Finalize crowdsale if we reached all hard caps or current time > SALE_END_TIME
+     * @dev Finalize crowdsale if we reached hard cap or current time > SALE_END_TIME
      */
     function finalizeCrowdsale() public onlyOwner {
-        uint256 totalHardCap = safeAdd(USAHardCap, hardCap);
-        uint256 totalEtherContributed = safeAdd(totalWorldEtherContributed, totalUSAEtherContributed);
         if(
-            (totalEtherContributed >= safeSub(totalHardCap, ETHER_MIN_CONTRIB_USA) && totalBNBContributed >= safeSub(BNB_HARD_CAP, BNB_MIN_CONTRIB)) ||
-            (now >= SALE_END_TIME && totalEtherContributed >= SOFT_CAP)
+            (totalEtherContributed >= safeSub(hardCap, ETHER_MIN_CONTRIB_USA) && totalBNBContributed >= safeSub(BNB_HARD_CAP, BNB_MIN_CONTRIB)) ||
+            (now >= SALE_END_TIME && totalEtherContributed >= softCap)
         ) {
             fund.onCrowdsaleEnd();
+            reservationFund.onCrowdsaleEnd();
             // BNB transfer
             bnbToken.transfer(bnbTokenWallet, bnbToken.balanceOf(address(this)));
 
             // Referral
             uint256 referralTokenAmount = safeDiv(rawTokenSupply, 10);
             token.issue(referralTokenWallet, referralTokenAmount);
+
+            // Developer
+            uint256 developerTokenAmount = safeDiv(token.totalSupply(), 2);
+            lockedTokens.addTokens(developerTokenWallet, developerTokenAmount, now + 365 days);
 
             uint256 suppliedTokenAmount = token.totalSupply();
 
@@ -377,7 +433,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
             // Company
             uint256 companyTokenAmount = safeDiv(suppliedTokenAmount, 4); // 15%
             token.issue(address(lockedTokens), companyTokenAmount);
-            lockedTokens.addTokens(companyTokenWallet, companyTokenAmount, now + 365 days);
+            lockedTokens.addTokens(companyTokenWallet, companyTokenAmount, now + 730 days);
 
 
             // Bounty
@@ -389,6 +445,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable {
         } else if(now >= SALE_END_TIME) {
             // Enable fund`s crowdsale refund if soft cap is not reached
             fund.enableCrowdsaleRefund();
+            reservationFund.onCrowdsaleEnd();
             bnbRefundEnabled = true;
         }
         token.finishIssuance();

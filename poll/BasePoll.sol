@@ -5,10 +5,10 @@ import '../token/IERC20Token.sol';
 
 
 /**
- * @title BaseVoting
- * @dev Abstract base class for voting contracts
+ * @title BasePoll
+ * @dev Abstract base class for polling contracts
  */
-contract BaseVoting is SafeMath {
+contract BasePoll is SafeMath {
     struct Vote {
         uint256 time;
         uint256 weight;
@@ -22,11 +22,11 @@ contract BaseVoting is SafeMath {
 
     uint256 public startTime;
     uint256 public endTime;
+    bool checkTransfersAfterEnd;
 
     uint256 public yesCounter = 0;
     uint256 public noCounter = 0;
     uint256 public totalVoted = 0;
-    uint256 public minTokensPerc = 0;
 
     bool public finalized;
     mapping(address => Vote) public votesByAddress;
@@ -42,23 +42,22 @@ contract BaseVoting is SafeMath {
     }
 
     /**
-     * @dev BaseVoting constructor
+     * @dev BasePoll constructor
      * @param _tokenAddress ERC20 compatible token contract address
      * @param _fundAddress Fund contract address
-     * @param _startTime Voting start time
-     * @param _endTime Voting end time
-     * @param _minTokensPerc - Min percent of tokens from totalSupply where voting is considered to be fulfilled
+     * @param _startTime Poll start time
+     * @param _endTime Poll end time
      */
-    function BaseVoting(address _tokenAddress, address _fundAddress, uint256 _startTime, uint256 _endTime, uint256 _minTokensPerc) public {
+    function BasePoll(address _tokenAddress, address _fundAddress, uint256 _startTime, uint256 _endTime, bool _checkTransfersAfterEnd) public {
         require(_tokenAddress != address(0));
-        require(_startTime > now && _endTime > _startTime);
+        require(_startTime >= now && _endTime > _startTime);
 
         token = IERC20Token(_tokenAddress);
         fundAddress = _fundAddress;
         startTime = _startTime;
         endTime = _endTime;
-        minTokensPerc = _minTokensPerc;
         finalized = false;
+        checkTransfersAfterEnd = _checkTransfersAfterEnd;
     }
 
     /**
@@ -113,9 +112,15 @@ contract BaseVoting is SafeMath {
      */
     function onTokenTransfer(address tokenHolder, uint256 amount) public {
         require(msg.sender == fundAddress);
-        if(votesByAddress[tokenHolder].time == 0 || finalized || (now < startTime || now > endTime)) {
+        if(votesByAddress[tokenHolder].time == 0) {
             return;
         }
+        if(!checkTransfersAfterEnd) {
+             if(finalized || (now < startTime || now > endTime)) {
+                 return;
+             }
+        }
+
         if(token.balanceOf(tokenHolder) >= votesByAddress[tokenHolder].weight) {
             return;
         }
@@ -133,12 +138,14 @@ contract BaseVoting is SafeMath {
     }
 
     /**
-     * Finalize voting and call onVotingFinish callback with result
+     * Finalize poll and call onPollFinish callback with result
      */
     function tryToFinalize() public notFinalized returns(bool) {
-        require(now >= endTime);
+        if(now < endTime) {
+            return false;
+        }
         finalized = true;
-        onVotingFinish(isSubjectApproved());
+        onPollFinish(isSubjectApproved());
         return true;
     }
 
@@ -146,21 +153,12 @@ contract BaseVoting is SafeMath {
         return isSubjectApproved();
     }
 
-    function getVotedTokensPerc() public view returns(uint256) {
-        return safeDiv(safeMul(safeAdd(yesCounter, noCounter), 100), token.totalSupply());
-    }
-
     function isSubjectApproved() internal view returns(bool) {
-        uint256 votedTokensPerc = getVotedTokensPerc();
-
-        if(votedTokensPerc >= minTokensPerc && yesCounter > noCounter) {
-            return true;
-        }
-        return false;
+        return yesCounter > noCounter;
     }
 
     /**
-     * @dev callback called after voting finalization
+     * @dev callback called after poll finalization
      */
-    function onVotingFinish(bool agree) internal;
+    function onPollFinish(bool agree) internal;
 }

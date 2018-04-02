@@ -109,6 +109,7 @@ contract ManagedToken is ERC20Token, MultiOwnable {
         require(balances[_from] >= _value);
         totalSupply = safeSub(totalSupply, _value);
         balances[_from] = safeSub(balances[_from], _value);
+        Transfer(_from, address(0), _value);
         Destroy(_from, _value);
     }
 

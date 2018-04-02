@@ -4,6 +4,7 @@ import './fund/ICrowdsaleFund.sol';
 import './math/SafeMath.sol';
 import './ownership/MultiOwnable.sol';
 import './token/ManagedToken.sol';
+import './ISimpleCrowdsale.sol';
 
 
 contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
@@ -17,7 +18,7 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
     FundState public state = FundState.Crowdsale;
     ManagedToken public token;
 
-    uint256 public constant INITIAL_TAP = 115740740740740; // (wei/sec) == 300 ether/month
+    uint256 public constant INITIAL_TAP = 385802469135802; // (wei/sec) == 1000 ether/month
 
     address public teamWallet;
     uint256 public crowdsaleEndDate;
@@ -30,8 +31,7 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
 
     uint256 public tap;
     uint256 public lastWithdrawTime = 0;
-    uint256 public overheadBufferAmount;
-
+    uint256 public firstWithdrawAmount = 0;
 
     address public crowdsaleAddress;
     mapping(address => uint256) public contributions;
@@ -39,7 +39,6 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
     event RefundContributor(address tokenHolder, uint256 amountWei, uint256 timestamp);
     event RefundHolder(address tokenHolder, uint256 amountWei, uint256 tokenAmount, uint256 timestamp);
     event Withdraw(uint256 amountWei, uint256 timestamp);
-    event BufferWithdraw(uint256 amountWei, uint256 timestamp);
     event RefundEnabled(address initiatorAddress);
 
     /**
@@ -71,13 +70,17 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
         _setOwners(_owners);
     }
 
-    /*
-    * Crowdsale
-    */
+    modifier withdrawEnabled() {
+        require(canWithdraw());
+        _;
+    }
+
     modifier onlyCrowdsale() {
         require(msg.sender == crowdsaleAddress);
         _;
     }
+
+    function canWithdraw() public returns(bool);
 
     function setCrowdsaleAddress(address _crowdsaleAddress) public onlyOwner {
         require(crowdsaleAddress == address(0));
@@ -103,6 +106,8 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
      */
     function onCrowdsaleEnd() external onlyCrowdsale {
         state = FundState.TeamWithdraw;
+        ISimpleCrowdsale crowdsale = ISimpleCrowdsale(crowdsaleAddress);
+        firstWithdrawAmount = safeDiv(crowdsale.getSoftCap(), 2);
         lastWithdrawTime = now;
         tap = INITIAL_TAP;
         crowdsaleEndDate = now;
@@ -149,35 +154,29 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
 
     function calcTapAmount() internal view returns(uint256) {
         uint256 amount = safeMul(safeSub(now, lastWithdrawTime), tap);
-        if(this.balance < amount) {
-            amount = this.balance;
+        if(address(this).balance < amount) {
+            amount = address(this).balance;
         }
         return amount;
     }
 
-    /**
-     * @dev Withdraw tap amount
-     */
-    function withdraw() public onlyOwner {
-        require(state == FundState.TeamWithdraw);
-        uint256 amount = calcTapAmount();
-        lastWithdrawTime = now;
+    function firstWithdraw() public onlyOwner withdrawEnabled {
+        require(firstWithdrawAmount > 0);
+        uint256 amount = firstWithdrawAmount;
+        firstWithdrawAmount = 0;
         teamWallet.transfer(amount);
         Withdraw(amount, now);
     }
 
     /**
-     * @dev Withdraw overhead buffer amount
+     * @dev Withdraw tap amount
      */
-    function withdrawOverheadBuffer() public onlyOwner {
+    function withdraw() public onlyOwner withdrawEnabled {
         require(state == FundState.TeamWithdraw);
-        require(overheadBufferAmount > 0);
-
-        uint256 amount = overheadBufferAmount;
-        overheadBufferAmount = 0;
-
+        uint256 amount = calcTapAmount();
+        lastWithdrawTime = now;
         teamWallet.transfer(amount);
-        BufferWithdraw(amount, now);
+        Withdraw(amount, now);
     }
 
     // Refund
@@ -205,7 +204,7 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
 
         uint256 tokenBalance = token.balanceOf(msg.sender);
         require(tokenBalance > 0);
-        uint256 refundAmount = safeDiv(safeMul(tokenBalance, this.balance), token.totalSupply());
+        uint256 refundAmount = safeDiv(safeMul(tokenBalance, address(this).balance), token.totalSupply());
         require(refundAmount > 0);
 
         token.destroy(msg.sender, tokenBalance);
