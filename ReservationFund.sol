@@ -15,7 +15,6 @@ contract ReservationFund is ICrowdsaleReservationFund, Ownable, SafeMath {
 
     ISimpleCrowdsale public crowdsale;
 
-    event ReservationFundContribution(address contributor, uint256 etherAmount, uint256 tokensToIssue, uint256 bonusTokensToIssue);
     event RefundPayment(address contributor, uint256 etherAmount);
     event FinishCrowdsale();
 
@@ -46,8 +45,6 @@ contract ReservationFund is ICrowdsaleReservationFund, Ownable, SafeMath {
         contributions[contributor] = safeAdd(contributions[contributor], msg.value);
         tokensToIssue[contributor] = safeAdd(tokensToIssue[contributor], _tokensToIssue);
         bonusTokensToIssue[contributor] = safeAdd(bonusTokensToIssue[contributor], _bonusTokensToIssue);
-
-        ReservationFundContribution(contributor,msg.value, _tokensToIssue, _bonusTokensToIssue);
     }
 
     function completeContribution(address contributor) public {

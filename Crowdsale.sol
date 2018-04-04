@@ -79,6 +79,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
     bool public bnbRefundEnabled = false;
 
     event LogContribution(address contributor, uint256 amountWei, uint256 tokenAmount, uint256 tokenBonus, uint256 timestamp);
+    event ReservationFundContribution(address contributor, uint256 amountWei, uint256 tokensToIssue, uint256 bonusTokensToIssue, uint256 timestamp);
     event LogBNBContribution(address contributor, uint256 amountBNB, uint256 tokenAmount, uint256 tokenBonus, uint256 timestamp);
 
     modifier checkContribution() {
@@ -318,6 +319,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
             tokenAmount,
             tokenBonusAmount
         );
+        ReservationFundContribution(msg.sender, msg.value, tokenAmount, tokenBonusAmount, now);
     }
 
     /**
