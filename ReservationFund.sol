@@ -16,6 +16,7 @@ contract ReservationFund is ICrowdsaleReservationFund, Ownable, SafeMath {
     ISimpleCrowdsale public crowdsale;
 
     event RefundPayment(address contributor, uint256 etherAmount);
+    event TransferToFund(address contributor, uint256 etherAmount);
     event FinishCrowdsale();
 
     function ReservationFund(address _owner) public Ownable(_owner) {
@@ -47,7 +48,20 @@ contract ReservationFund is ICrowdsaleReservationFund, Ownable, SafeMath {
         bonusTokensToIssue[contributor] = safeAdd(bonusTokensToIssue[contributor], _bonusTokensToIssue);
     }
 
-    function completeContribution(address contributor) public {
+    function canCompleteContribution(address contributor) external returns(bool) {
+        if(crowdsaleFinished) {
+            return false;
+        }
+        if(!crowdsale.isContributorInLists(contributor)) {
+            return false;
+        }
+        if(contributions[contributor] == 0) {
+            return false;
+        }
+        return true;
+    }
+
+    function completeContribution(address contributor) external {
         require(!crowdsaleFinished);
         require(crowdsale.isContributorInLists(contributor));
         require(contributions[contributor] > 0);
@@ -61,6 +75,7 @@ contract ReservationFund is ICrowdsaleReservationFund, Ownable, SafeMath {
         bonusTokensToIssue[contributor] = 0;
 
         crowdsale.processReservationFundContribution.value(etherAmount)(contributor, tokenAmount, tokenBonusAmount);
+        TransferToFund(contributor, etherAmount);
     }
 
     function onCrowdsaleEnd() external {

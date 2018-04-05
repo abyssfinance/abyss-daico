@@ -11,7 +11,7 @@ import './ISimpleCrowdsale.sol';
 
 
 contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
-    enum TelegramBonusState {
+    enum AdditionalBonusState {
         Unavailable,
         Active,
         Applied
@@ -20,14 +20,14 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
     uint256 public constant TG_BONUS_NUM = 3;
     uint256 public constant TG_BONUS_DENOM = 100;
 
-    uint256 public constant ETHER_MIN_CONTRIB = 0.1 ether;
-    uint256 public constant ETHER_MAX_CONTRIB = 10 ether;
+    uint256 public constant ETHER_MIN_CONTRIB = 0.2 ether;
+    uint256 public constant ETHER_MAX_CONTRIB = 20 ether;
 
     uint256 public constant ETHER_MIN_CONTRIB_PRIVATE = 100 ether;
     uint256 public constant ETHER_MAX_CONTRIB_PRIVATE = 3000 ether;
 
-    uint256 public constant ETHER_MIN_CONTRIB_USA = 1 ether;
-    uint256 public constant ETHER_MAX_CONTRIB_USA = 100 ether;
+    uint256 public constant ETHER_MIN_CONTRIB_USA = 0.2 ether;
+    uint256 public constant ETHER_MAX_CONTRIB_USA = 20 ether;
 
     uint256 public constant SALE_START_TIME = 1523887200; // 16.04.2018 14:00:00 UTC
     uint256 public constant SALE_END_TIME = 1526479200; // 16.05.2018 14:00:00 UTC
@@ -52,7 +52,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
 
     mapping(address => bool) public whiteList;
     mapping(address => bool) public privilegedList;
-    mapping(address => TelegramBonusState) public telegramMemberBonusState;
+    mapping(address => AdditionalBonusState) public additionalBonusOwnerState;
     mapping(address => uint256) public userTotalContributed;
 
     address public bnbTokenWallet;
@@ -78,9 +78,9 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
 
     bool public bnbRefundEnabled = false;
 
-    event LogContribution(address contributor, uint256 amountWei, uint256 tokenAmount, uint256 tokenBonus, uint256 timestamp);
+    event LogContribution(address contributor, uint256 amountWei, uint256 tokenAmount, uint256 tokenBonus, bool additionalBonusApplied, uint256 timestamp);
     event ReservationFundContribution(address contributor, uint256 amountWei, uint256 tokensToIssue, uint256 bonusTokensToIssue, uint256 timestamp);
-    event LogBNBContribution(address contributor, uint256 amountBNB, uint256 tokenAmount, uint256 tokenBonus, uint256 timestamp);
+    event LogBNBContribution(address contributor, uint256 amountBNB, uint256 tokenAmount, uint256 tokenBonus, bool additionalBonusApplied, uint256 timestamp);
 
     modifier checkContribution() {
         require(isValidContribution());
@@ -257,6 +257,30 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
         return (numerator, denominator);
     }
 
+    function addToLists(
+        address _wallet,
+        bool isInWhiteList,
+        bool isInPrivilegedList,
+        bool isInLimitedList,
+        bool hasAdditionalBonus
+    ) public onlyOwner {
+        if(isInWhiteList) {
+            whiteList[_wallet] = true;
+        }
+        if(isInPrivilegedList) {
+            privilegedList[_wallet] = true;
+        }
+        if(isInLimitedList) {
+            token.addLimitedWalletAddress(_wallet);
+        }
+        if(hasAdditionalBonus) {
+            additionalBonusOwnerState[_wallet] = AdditionalBonusState.Active;
+        }
+        if(reservationFund.canCompleteContribution(_wallet)) {
+            reservationFund.completeContribution(_wallet);
+        }
+    }
+
     /**
      * @dev Add wallet to whitelist. For contract owner only.
      */
@@ -265,10 +289,10 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
     }
 
     /**
-     * @dev Add wallet to telegram members. For contract owner only.
+     * @dev Add wallet to additional bonus members. For contract owner only.
      */
-    function addTelegramMember(address _wallet) public onlyOwner {
-        telegramMemberBonusState[_wallet] = TelegramBonusState.Active;
+    function addAdditionalBonusMember(address _wallet) public onlyOwner {
+        additionalBonusOwnerState[_wallet] = AdditionalBonusState.Active;
     }
 
     /**
@@ -327,6 +351,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
      * Transfer all amount of tokens approved by sender. Calc bonuses and issue tokens to contributor.
      */
     function processBNBContribution() public whenNotPaused checkBNBContribution {
+        bool additionalBonusApplied = false;
         uint256 bonusNum = 0;
         uint256 bonusDenom = 100;
         (bonusNum, bonusDenom) = getBonus();
@@ -341,23 +366,25 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
             tokenBonusAmount = safeDiv(safeMul(tokenAmount, bonusNum), bonusDenom);
         }
 
-        if(telegramMemberBonusState[msg.sender] ==  TelegramBonusState.Active) {
-            telegramMemberBonusState[msg.sender] = TelegramBonusState.Applied;
-            uint256 telegramBonus = safeDiv(safeMul(tokenAmount, TG_BONUS_NUM), TG_BONUS_DENOM);
-            tokenBonusAmount = safeAdd(tokenBonusAmount, telegramBonus);
+        if(additionalBonusOwnerState[msg.sender] ==  AdditionalBonusState.Active) {
+            additionalBonusOwnerState[msg.sender] = AdditionalBonusState.Applied;
+            uint256 additionalBonus = safeDiv(safeMul(tokenAmount, TG_BONUS_NUM), TG_BONUS_DENOM);
+            tokenBonusAmount = safeAdd(tokenBonusAmount, additionalBonus);
+            additionalBonusApplied = true;
         }
 
         uint256 tokenTotalAmount = safeAdd(tokenAmount, tokenBonusAmount);
         token.issue(msg.sender, tokenTotalAmount);
         totalBNBContributed = safeAdd(totalBNBContributed, amountBNB);
 
-        LogBNBContribution(msg.sender, amountBNB, tokenAmount, tokenBonusAmount, now);
+        LogBNBContribution(msg.sender, amountBNB, tokenAmount, tokenBonusAmount, additionalBonusApplied, now);
     }
 
     /**
      * @dev Process ether contribution. Calc bonuses and issue tokens to contributor.
      */
     function processContribution() private checkContribution checkCap {
+        bool additionalBonusApplied = false;
         uint256 bonusNum = 0;
         uint256 bonusDenom = 100;
         (bonusNum, bonusDenom) = getBonus();
@@ -370,15 +397,19 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
             tokenBonusAmount = safeDiv(safeMul(tokenAmount, bonusNum), bonusDenom);
         }
 
-        if(telegramMemberBonusState[msg.sender] ==  TelegramBonusState.Active) {
-            telegramMemberBonusState[msg.sender] = TelegramBonusState.Applied;
-            uint256 telegramBonus = safeDiv(safeMul(tokenAmount, TG_BONUS_NUM), TG_BONUS_DENOM);
-            tokenBonusAmount = safeAdd(tokenBonusAmount, telegramBonus);
+        if(additionalBonusOwnerState[msg.sender] ==  AdditionalBonusState.Active) {
+            additionalBonusOwnerState[msg.sender] = AdditionalBonusState.Applied;
+            uint256 additionalBonus = safeDiv(safeMul(tokenAmount, TG_BONUS_NUM), TG_BONUS_DENOM);
+            tokenBonusAmount = safeAdd(tokenBonusAmount, additionalBonus);
+            additionalBonusApplied = true;
         }
 
-        processPayment(msg.sender, msg.value, tokenAmount, tokenBonusAmount);
+        processPayment(msg.sender, msg.value, tokenAmount, tokenBonusAmount, additionalBonusApplied);
     }
 
+    /**
+     * @dev Process ether contribution before KYC. Calc bonuses and tokens to issue after KYC.
+     */
     function processReservationFundContribution(
         address contributor,
         uint256 tokenAmount,
@@ -387,17 +418,17 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
         require(msg.sender == address(reservationFund));
         require(msg.value > 0);
 
-        processPayment(contributor, msg.value, tokenAmount, tokenBonusAmount);
+        processPayment(contributor, msg.value, tokenAmount, tokenBonusAmount, false);
     }
 
-    function processPayment(address contributor, uint256 etherAmount, uint256 tokenAmount, uint256 tokenBonusAmount) internal {
+    function processPayment(address contributor, uint256 etherAmount, uint256 tokenAmount, uint256 tokenBonusAmount, bool additionalBonusApplied) internal {
         uint256 tokenTotalAmount = safeAdd(tokenAmount, tokenBonusAmount);
 
         token.issue(contributor, tokenTotalAmount);
         fund.processContribution.value(etherAmount)(contributor);
         totalEtherContributed = safeAdd(totalEtherContributed, etherAmount);
 
-        LogContribution(contributor, etherAmount, tokenAmount, tokenBonusAmount, now);
+        LogContribution(contributor, etherAmount, tokenAmount, tokenBonusAmount, additionalBonusApplied, now);
     }
 
     /**
@@ -436,7 +467,6 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
             uint256 companyTokenAmount = safeDiv(suppliedTokenAmount, 4); // 15%
             token.issue(address(lockedTokens), companyTokenAmount);
             lockedTokens.addTokens(companyTokenWallet, companyTokenAmount, now + 730 days);
-
 
             // Bounty
             uint256 bountyTokenAmount = safeDiv(suppliedTokenAmount, 60); // 1%

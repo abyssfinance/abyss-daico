@@ -24,6 +24,7 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
     uint256 public crowdsaleEndDate;
 
     address public referralTokenWallet;
+    address public developerTokenWallet;
     address public reserveTokenWallet;
     address public bountyTokenWallet;
     address public companyTokenWallet;
@@ -54,6 +55,7 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
     function Fund(
         address _teamWallet,
         address _referralTokenWallet,
+        address _developerTokenWallet,
         address _companyTokenWallet,
         address _reserveTokenWallet,
         address _bountyTokenWallet,
@@ -63,6 +65,7 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
     {
         teamWallet = _teamWallet;
         referralTokenWallet = _referralTokenWallet;
+        developerTokenWallet = _developerTokenWallet;
         companyTokenWallet = _companyTokenWallet;
         reserveTokenWallet = _reserveTokenWallet;
         bountyTokenWallet = _bountyTokenWallet;
@@ -189,6 +192,7 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
         token.setAllowTransfers(false);
         token.destroy(companyTokenWallet, token.balanceOf(companyTokenWallet));
         token.destroy(reserveTokenWallet, token.balanceOf(reserveTokenWallet));
+        token.destroy(developerTokenWallet, token.balanceOf(developerTokenWallet));
         token.destroy(bountyTokenWallet, token.balanceOf(bountyTokenWallet));
         token.destroy(referralTokenWallet, token.balanceOf(referralTokenWallet));
         token.destroy(advisorTokenWallet, token.balanceOf(advisorTokenWallet));

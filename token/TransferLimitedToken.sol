@@ -36,8 +36,12 @@ contract TransferLimitedToken is ManagedToken {
      * @param _owners Owners list
      * @param _limitedWalletsManager Address used to add/del wallets from limitedWallets
      */
-    function TransferLimitedToken(uint256 _limitStartDate, address _listener, address[] _owners, address _limitedWalletsManager) public
-        ManagedToken(_listener, _owners)
+    function TransferLimitedToken(
+        uint256 _limitStartDate,
+        address _listener,
+        address[] _owners,
+        address _limitedWalletsManager
+    ) public ManagedToken(_listener, _owners)
     {
         limitEndDate = _limitStartDate + LIMIT_TRANSFERS_PERIOD;
         isLimitEnabled = true;
@@ -48,7 +52,8 @@ contract TransferLimitedToken is ManagedToken {
      * @dev Add address to limitedWallets
      * @dev Can be called only by manager
      */
-    function addLimitedWalletAddress(address _wallet) public onlyManager {
+    function addLimitedWalletAddress(address _wallet) public {
+        require(msg.sender == limitedWalletsManager || ownerByAddress[msg.sender]);
         limitedWallets[_wallet] = true;
     }
 
