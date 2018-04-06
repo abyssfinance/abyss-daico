@@ -189,7 +189,6 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
     function enableRefund() internal {
         require(state == FundState.TeamWithdraw);
         state = FundState.Refund;
-        token.setAllowTransfers(false);
         token.destroy(companyTokenWallet, token.balanceOf(companyTokenWallet));
         token.destroy(reserveTokenWallet, token.balanceOf(reserveTokenWallet));
         token.destroy(developerTokenWallet, token.balanceOf(developerTokenWallet));
