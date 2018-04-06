@@ -14,10 +14,12 @@ import './token/ITokenEventListener.sol';
 contract PollManagedFund is Fund, DateTime, ITokenEventListener {
     uint256 public constant TAP_POLL_DURATION = 3 days;
     uint256 public constant REFUND_POLL_DURATION = 7 days;
+    uint256 public constant MAX_VOTED_TOKEN_PERC = 10;
 
     TapPoll public tapPoll;
     RefundPoll public refundPoll;
 
+    uint256 public minVotedTokensPerc = 0;
     uint256 public secondRefundPollDate = 0;
     bool public isWithdrawEnabled = true;
 
@@ -36,6 +38,11 @@ contract PollManagedFund is Fund, DateTime, ITokenEventListener {
         require(token.balanceOf(msg.sender) > 0);
         _;
     }
+
+    event TapPollCreated();
+    event TapPollFinished(bool approved, uint256 _tap);
+    event RefundPollCreated();
+    event RefundPollFinished(bool approved);
 
     /**
      * @dev PollManagedFund constructor
@@ -81,6 +88,19 @@ contract PollManagedFund is Fund, DateTime, ITokenEventListener {
         }
     }
 
+    /**
+     * @dev Update minVotedTokensPerc value after tap poll.
+     * Set new value == 50% from current voted tokens amount
+     */
+    function updateMinVotedTokens(uint256 _minVotedTokensPerc) internal {
+        uint256 newPerc = safeDiv(_minVotedTokensPerc, 2);
+        if(newPerc > MAX_VOTED_TOKEN_PERC) {
+            minVotedTokensPerc = MAX_VOTED_TOKEN_PERC;
+            return;
+        }
+        minVotedTokensPerc = newPerc;
+    }
+
     // Tap poll
     function createTapPoll(uint8 tapIncPerc) public onlyOwner {
         require(state == FundState.TeamWithdraw);
@@ -90,7 +110,8 @@ contract PollManagedFund is Fund, DateTime, ITokenEventListener {
         uint256 _tap = safeAdd(tap, safeDiv(safeMul(tap, tapIncPerc), 100));
         uint256 startTime = now;
         uint256 endTime = startTime + TAP_POLL_DURATION;
-        tapPoll = new TapPoll(_tap, token, this, startTime, endTime);
+        tapPoll = new TapPoll(_tap, token, this, startTime, endTime, minVotedTokensPerc);
+        TapPollCreated();
     }
 
     function onTapPollFinish(bool agree, uint256 _tap) external {
@@ -98,6 +119,8 @@ contract PollManagedFund is Fund, DateTime, ITokenEventListener {
         if(agree) {
             tap = _tap;
         }
+        updateMinVotedTokens(tapPoll.getVotedTokensPerc());
+        TapPollFinished(agree, _tap);
         delete tapPoll;
     }
 
@@ -137,6 +160,7 @@ contract PollManagedFund is Fund, DateTime, ITokenEventListener {
             );
         }
         refundPoll = new RefundPoll(token, this, startTime, endTime, holdEndTime, isFirstRefund);
+        RefundPollCreated();
     }
 
     function onRefundPollFinish(bool agree) external {
@@ -157,6 +181,8 @@ contract PollManagedFund is Fund, DateTime, ITokenEventListener {
             secondRefundPollDate = 0;
             isWithdrawEnabled = true;
         }
+        RefundPollFinished(agree);
+
         delete refundPoll;
     }
 
