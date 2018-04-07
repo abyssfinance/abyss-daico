@@ -449,7 +449,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
             token.issue(referralTokenWallet, referralTokenAmount);
 
             // Foundation
-            uint256 foundationTokenAmount = safeDiv(token.totalSupply(), 2);
+            uint256 foundationTokenAmount = safeDiv(token.totalSupply(), 2); // 20%
             lockedTokens.addTokens(foundationTokenWallet, foundationTokenAmount, now + 365 days);
 
             uint256 suppliedTokenAmount = token.totalSupply();
