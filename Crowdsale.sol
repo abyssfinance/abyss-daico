@@ -57,7 +57,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
 
     address public bnbTokenWallet;
     address public referralTokenWallet;
-    address public developerTokenWallet;
+    address public foundationTokenWallet;
     address public advisorsTokenWallet;
     address public companyTokenWallet;
     address public reserveTokenWallet;
@@ -104,7 +104,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
         address reservationFundAddress,
         address _bnbTokenWallet,
         address _referralTokenWallet,
-        address _developerTokenWallet,
+        address _foundationTokenWallet,
         address _advisorsTokenWallet,
         address _companyTokenWallet,
         address _reserveTokenWallet,
@@ -122,7 +122,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
 
         bnbTokenWallet = _bnbTokenWallet;
         referralTokenWallet = _referralTokenWallet;
-        developerTokenWallet = _developerTokenWallet;
+        foundationTokenWallet = _foundationTokenWallet;
         advisorsTokenWallet = _advisorsTokenWallet;
         companyTokenWallet = _companyTokenWallet;
         reserveTokenWallet = _reserveTokenWallet;
@@ -448,9 +448,9 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
             uint256 referralTokenAmount = safeDiv(rawTokenSupply, 10);
             token.issue(referralTokenWallet, referralTokenAmount);
 
-            // Developer
-            uint256 developerTokenAmount = safeDiv(token.totalSupply(), 2);
-            lockedTokens.addTokens(developerTokenWallet, developerTokenAmount, now + 365 days);
+            // Foundation
+            uint256 foundationTokenAmount = safeDiv(token.totalSupply(), 2);
+            lockedTokens.addTokens(foundationTokenWallet, foundationTokenAmount, now + 365 days);
 
             uint256 suppliedTokenAmount = token.totalSupply();
 

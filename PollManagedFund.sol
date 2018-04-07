@@ -51,14 +51,14 @@ contract PollManagedFund is Fund, DateTime, ITokenEventListener {
     function PollManagedFund(
         address _teamWallet,
         address _referralTokenWallet,
-        address _developerTokenWallet,
+        address _foundationTokenWallet,
         address _companyTokenWallet,
         address _reserveTokenWallet,
         address _bountyTokenWallet,
         address _advisorTokenWallet,
         address[] _owners
         ) public
-    Fund(_teamWallet, _referralTokenWallet, _developerTokenWallet, _companyTokenWallet, _reserveTokenWallet, _bountyTokenWallet, _advisorTokenWallet, _owners)
+    Fund(_teamWallet, _referralTokenWallet, _foundationTokenWallet, _companyTokenWallet, _reserveTokenWallet, _bountyTokenWallet, _advisorTokenWallet, _owners)
     {
     }
 
