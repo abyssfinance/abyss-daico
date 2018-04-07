@@ -24,7 +24,7 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
     uint256 public crowdsaleEndDate;
 
     address public referralTokenWallet;
-    address public developerTokenWallet;
+    address public foundationTokenWallet;
     address public reserveTokenWallet;
     address public bountyTokenWallet;
     address public companyTokenWallet;
@@ -55,7 +55,7 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
     function Fund(
         address _teamWallet,
         address _referralTokenWallet,
-        address _developerTokenWallet,
+        address _foundationTokenWallet,
         address _companyTokenWallet,
         address _reserveTokenWallet,
         address _bountyTokenWallet,
@@ -65,7 +65,7 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
     {
         teamWallet = _teamWallet;
         referralTokenWallet = _referralTokenWallet;
-        developerTokenWallet = _developerTokenWallet;
+        foundationTokenWallet = _foundationTokenWallet;
         companyTokenWallet = _companyTokenWallet;
         reserveTokenWallet = _reserveTokenWallet;
         bountyTokenWallet = _bountyTokenWallet;
@@ -191,7 +191,7 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
         state = FundState.Refund;
         token.destroy(companyTokenWallet, token.balanceOf(companyTokenWallet));
         token.destroy(reserveTokenWallet, token.balanceOf(reserveTokenWallet));
-        token.destroy(developerTokenWallet, token.balanceOf(developerTokenWallet));
+        token.destroy(foundationTokenWallet, token.balanceOf(foundationTokenWallet));
         token.destroy(bountyTokenWallet, token.balanceOf(bountyTokenWallet));
         token.destroy(referralTokenWallet, token.balanceOf(referralTokenWallet));
         token.destroy(advisorTokenWallet, token.balanceOf(advisorTokenWallet));
