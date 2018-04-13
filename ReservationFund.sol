@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.21;
 
 import './fund/ICrowdsaleReservationFund.sol';
 import './ISimpleCrowdsale.sol';
@@ -28,6 +28,7 @@ contract ReservationFund is ICrowdsaleReservationFund, Ownable, SafeMath {
     }
 
     function setCrowdsaleAddress(address crowdsaleAddress) public onlyOwner {
+        require(crowdsale == address(0));
         crowdsale = ISimpleCrowdsale(crowdsaleAddress);
     }
 

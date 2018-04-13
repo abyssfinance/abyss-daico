@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.21;
 
 import './fund/ICrowdsaleFund.sol';
 import './fund/ICrowdsaleReservationFund.sol';
@@ -17,8 +17,8 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
         Applied
     }
 
-    uint256 public constant TG_BONUS_NUM = 3;
-    uint256 public constant TG_BONUS_DENOM = 100;
+    uint256 public constant ADDITIONAL_BONUS_NUM = 3;
+    uint256 public constant ADDITIONAL_BONUS_DENOM = 100;
 
     uint256 public constant ETHER_MIN_CONTRIB = 0.2 ether;
     uint256 public constant ETHER_MAX_CONTRIB = 20 ether;
@@ -97,6 +97,11 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
         _;
     }
 
+    modifier checkTime() {
+        require(now >= SALE_START_TIME && now <= SALE_END_TIME);
+        _;
+    }
+
     function TheAbyssDAICO(
         address bnbTokenAddress,
         address tokenAddress,
@@ -140,10 +145,6 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
      * @dev check contribution amount and time
      */
     function isValidContribution() internal view returns(bool) {
-        if(now < SALE_START_TIME || now > SALE_END_TIME) {
-            return false;
-
-        }
         uint256 currentUserContribution = safeAdd(msg.value, userTotalContributed[msg.sender]);
         if(whiteList[msg.sender] && msg.value >= ETHER_MIN_CONTRIB) {
             if(now <= MAX_CONTRIB_CHECK_END_TIME && currentUserContribution > ETHER_MAX_CONTRIB ) {
@@ -219,9 +220,6 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
      */
     function isValidBNBContribution() internal view returns(bool) {
         if(token.limitedWallets(msg.sender)) {
-            return false;
-        }
-        if(now < SALE_START_TIME || now > SALE_END_TIME) {
             return false;
         }
         if(!whiteList[msg.sender] && !privilegedList[msg.sender]) {
@@ -314,43 +312,42 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
      */
     function () payable public whenNotPaused {
         if(whiteList[msg.sender] || privilegedList[msg.sender] || token.limitedWallets(msg.sender)) {
-            processContribution();
+            processContribution(msg.sender, msg.value);
         } else {
-            processReservationContribution();
+            processReservationContribution(msg.sender, msg.value);
         }
     }
 
-    function processReservationContribution() private checkCap {
-        require(now >= SALE_START_TIME && now <= SALE_END_TIME);
-        require(msg.value >= ETHER_MIN_CONTRIB);
+    function processReservationContribution(address contributor, uint256 amount) private checkTime checkCap {
+        require(amount >= ETHER_MIN_CONTRIB);
 
         if(now <= MAX_CONTRIB_CHECK_END_TIME) {
-            uint256 currentUserContribution = safeAdd(msg.value, reservationFund.contributionsOf(msg.sender));
+            uint256 currentUserContribution = safeAdd(amount, reservationFund.contributionsOf(contributor));
             require(currentUserContribution <= ETHER_MAX_CONTRIB);
         }
         uint256 bonusNum = 0;
         uint256 bonusDenom = 100;
         (bonusNum, bonusDenom) = getBonus();
         uint256 tokenBonusAmount = 0;
-        uint256 tokenAmount = safeDiv(safeMul(msg.value, tokenPriceNum), tokenPriceDenom);
+        uint256 tokenAmount = safeDiv(safeMul(amount, tokenPriceNum), tokenPriceDenom);
 
         if(bonusNum > 0) {
             tokenBonusAmount = safeDiv(safeMul(tokenAmount, bonusNum), bonusDenom);
         }
 
-        reservationFund.processContribution.value(msg.value)(
-            msg.sender,
+        reservationFund.processContribution.value(amount)(
+            contributor,
             tokenAmount,
             tokenBonusAmount
         );
-        ReservationFundContribution(msg.sender, msg.value, tokenAmount, tokenBonusAmount, now);
+        ReservationFundContribution(contributor, amount, tokenAmount, tokenBonusAmount, now);
     }
 
     /**
      * @dev Process BNB token contribution
      * Transfer all amount of tokens approved by sender. Calc bonuses and issue tokens to contributor.
      */
-    function processBNBContribution() public whenNotPaused checkBNBContribution {
+    function processBNBContribution() public whenNotPaused checkTime checkBNBContribution {
         bool additionalBonusApplied = false;
         uint256 bonusNum = 0;
         uint256 bonusDenom = 100;
@@ -368,7 +365,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
 
         if(additionalBonusOwnerState[msg.sender] ==  AdditionalBonusState.Active) {
             additionalBonusOwnerState[msg.sender] = AdditionalBonusState.Applied;
-            uint256 additionalBonus = safeDiv(safeMul(tokenAmount, TG_BONUS_NUM), TG_BONUS_DENOM);
+            uint256 additionalBonus = safeDiv(safeMul(tokenAmount, ADDITIONAL_BONUS_NUM), ADDITIONAL_BONUS_DENOM);
             tokenBonusAmount = safeAdd(tokenBonusAmount, additionalBonus);
             additionalBonusApplied = true;
         }
@@ -383,28 +380,28 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
     /**
      * @dev Process ether contribution. Calc bonuses and issue tokens to contributor.
      */
-    function processContribution() private checkContribution checkCap {
+    function processContribution(address contributor, uint256 amount) private checkTime checkContribution checkCap {
         bool additionalBonusApplied = false;
         uint256 bonusNum = 0;
         uint256 bonusDenom = 100;
         (bonusNum, bonusDenom) = getBonus();
         uint256 tokenBonusAmount = 0;
-        userTotalContributed[msg.sender] = safeAdd(userTotalContributed[msg.sender], msg.value);
-        uint256 tokenAmount = safeDiv(safeMul(msg.value, tokenPriceNum), tokenPriceDenom);
+
+        uint256 tokenAmount = safeDiv(safeMul(amount, tokenPriceNum), tokenPriceDenom);
         rawTokenSupply = safeAdd(rawTokenSupply, tokenAmount);
 
         if(bonusNum > 0) {
             tokenBonusAmount = safeDiv(safeMul(tokenAmount, bonusNum), bonusDenom);
         }
 
-        if(additionalBonusOwnerState[msg.sender] ==  AdditionalBonusState.Active) {
-            additionalBonusOwnerState[msg.sender] = AdditionalBonusState.Applied;
-            uint256 additionalBonus = safeDiv(safeMul(tokenAmount, TG_BONUS_NUM), TG_BONUS_DENOM);
+        if(additionalBonusOwnerState[contributor] ==  AdditionalBonusState.Active) {
+            additionalBonusOwnerState[contributor] = AdditionalBonusState.Applied;
+            uint256 additionalBonus = safeDiv(safeMul(tokenAmount, ADDITIONAL_BONUS_NUM), ADDITIONAL_BONUS_DENOM);
             tokenBonusAmount = safeAdd(tokenBonusAmount, additionalBonus);
             additionalBonusApplied = true;
         }
 
-        processPayment(msg.sender, msg.value, tokenAmount, tokenBonusAmount, additionalBonusApplied);
+        processPayment(contributor, amount, tokenAmount, tokenBonusAmount, additionalBonusApplied);
     }
 
     /**
@@ -427,7 +424,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
         token.issue(contributor, tokenTotalAmount);
         fund.processContribution.value(etherAmount)(contributor);
         totalEtherContributed = safeAdd(totalEtherContributed, etherAmount);
-
+        userTotalContributed[contributor] = safeAdd(userTotalContributed[contributor], etherAmount);
         LogContribution(contributor, etherAmount, tokenAmount, tokenBonusAmount, additionalBonusApplied, now);
     }
 

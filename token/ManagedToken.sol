@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity ^0.4.21;
 
 import '../ownership/MultiOwnable.sol';
 import './ERC20Token.sol';
@@ -21,12 +21,12 @@ contract ManagedToken is ERC20Token, MultiOwnable {
     event IssuanceFinished();
 
     modifier transfersAllowed() {
-        assert(allowTransfers);
+        require(allowTransfers);
         _;
     }
 
     modifier canIssue() {
-        assert(!issuanceFinished);
+        require(!issuanceFinished);
         _;
     }
 
