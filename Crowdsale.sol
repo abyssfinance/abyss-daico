@@ -39,7 +39,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
 
     uint256 public constant MAX_CONTRIB_CHECK_END_TIME = SALE_START_TIME + 1 days;
 
-    uint256 public constant BNB_TOKEN_PRICE_NUM = 10; // Price will be set right before Token Sale
+    uint256 public constant BNB_TOKEN_PRICE_NUM = 169;
     uint256 public constant BNB_TOKEN_PRICE_DENOM = 1;
 
     uint256 public tokenPriceNum = 0;
