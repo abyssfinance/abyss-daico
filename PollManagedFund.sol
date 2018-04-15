@@ -78,7 +78,7 @@ contract PollManagedFund is Fund, DateTime, ITokenEventListener {
     /**
      * @dev ITokenEventListener implementation. Notify active poll contracts about token transfers
      */
-    function onTokenTransfer(address _from, address /*_to*/, uint256 _value) public {
+    function onTokenTransfer(address _from, address /*_to*/, uint256 _value) external {
         require(msg.sender == address(token));
         if(address(tapPoll) != address(0) && !tapPoll.finalized()) {
             tapPoll.onTokenTransfer(_from, _value);

@@ -433,7 +433,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
      */
     function finalizeCrowdsale() public onlyOwner {
         if(
-            (totalEtherContributed >= safeSub(hardCap, ETHER_MIN_CONTRIB_USA) && totalBNBContributed >= safeSub(BNB_HARD_CAP, BNB_MIN_CONTRIB)) ||
+            (totalEtherContributed >= safeSub(hardCap, 20 ether) && totalBNBContributed >= safeSub(BNB_HARD_CAP, 10000 ether)) ||
             (now >= SALE_END_TIME && totalEtherContributed >= softCap)
         ) {
             fund.onCrowdsaleEnd();
