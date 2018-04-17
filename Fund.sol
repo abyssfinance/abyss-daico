@@ -29,6 +29,7 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
     address public bountyTokenWallet;
     address public companyTokenWallet;
     address public advisorTokenWallet;
+    address public lockedTokenAddress;
 
     uint256 public tap;
     uint256 public lastWithdrawTime = 0;
@@ -93,6 +94,11 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
     function setTokenAddress(address _tokenAddress) public onlyOwner {
         require(address(token) == address(0));
         token = ManagedToken(_tokenAddress);
+    }
+
+    function setLockedTokenAddress(address _lockedTokenAddress) public onlyOwner {
+        require(address(lockedTokenAddress) == address(0));
+        lockedTokenAddress = _lockedTokenAddress;
     }
 
     /**
@@ -189,6 +195,7 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
     function enableRefund() internal {
         require(state == FundState.TeamWithdraw);
         state = FundState.Refund;
+        token.destroy(lockedTokenAddress, token.balanceOf(lockedTokenAddress));
         token.destroy(companyTokenWallet, token.balanceOf(companyTokenWallet));
         token.destroy(reserveTokenWallet, token.balanceOf(reserveTokenWallet));
         token.destroy(foundationTokenWallet, token.balanceOf(foundationTokenWallet));
