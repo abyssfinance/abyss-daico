@@ -29,7 +29,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
     uint256 public constant ETHER_MIN_CONTRIB_USA = 0.2 ether;
     uint256 public constant ETHER_MAX_CONTRIB_USA = 20 ether;
 
-    uint256 public constant SALE_START_TIME = 1523887200; // 16.04.2018 14:00:00 UTC
+    uint256 public constant SALE_START_TIME = 1524060000; // 18.04.2018 14:00:00 UTC
     uint256 public constant SALE_END_TIME = 1526479200; // 16.05.2018 14:00:00 UTC
 
     uint256 public constant BONUS_WINDOW_1_END_TIME = SALE_START_TIME + 2 days;
@@ -479,10 +479,7 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
             // Bounty
             uint256 bountyTokenAmount = safeDiv(suppliedTokenAmount, 60); // 1%
             token.issue(bountyTokenWallet, bountyTokenAmount);
-
             token.finishIssuance();
-            token.setAllowTransfers(true);
-
         } else if(now >= SALE_END_TIME) {
             // Enable fund`s crowdsale refund if soft cap is not reached
             fund.enableCrowdsaleRefund();

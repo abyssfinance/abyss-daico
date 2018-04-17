@@ -14,6 +14,8 @@ contract TransferLimitedToken is ManagedToken {
     address public limitedWalletsManager;
     bool public isLimitEnabled;
 
+    event TransfersEnabled();
+
     modifier onlyManager() {
         require(msg.sender == limitedWalletsManager);
         _;
@@ -46,6 +48,15 @@ contract TransferLimitedToken is ManagedToken {
         limitEndDate = _limitStartDate + LIMIT_TRANSFERS_PERIOD;
         isLimitEnabled = true;
         limitedWalletsManager = _limitedWalletsManager;
+    }
+
+    /**
+     * @dev Enable token transfers
+     */
+    function enableTransfers() public {
+        require(msg.sender == limitedWalletsManager);
+        allowTransfers = true;
+        TransfersEnabled();
     }
 
     /**
