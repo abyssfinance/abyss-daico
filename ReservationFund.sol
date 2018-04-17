@@ -32,6 +32,28 @@ contract ReservationFund is ICrowdsaleReservationFund, Ownable, SafeMath {
         crowdsale = ISimpleCrowdsale(crowdsaleAddress);
     }
 
+    function onCrowdsaleEnd() external onlyCrowdsale {
+        crowdsaleFinished = true;
+        FinishCrowdsale();
+    }
+
+
+    function canCompleteContribution(address contributor) external returns(bool) {
+        if(crowdsaleFinished) {
+            return false;
+        }
+        if(!crowdsale.isContributorInLists(contributor)) {
+            return false;
+        }
+        if(contributions[contributor] == 0) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * @dev Function to check contributions by address
+     */
     function contributionsOf(address contributor) external returns(uint256) {
         return contributions[contributor];
     }
@@ -49,19 +71,9 @@ contract ReservationFund is ICrowdsaleReservationFund, Ownable, SafeMath {
         bonusTokensToIssue[contributor] = safeAdd(bonusTokensToIssue[contributor], _bonusTokensToIssue);
     }
 
-    function canCompleteContribution(address contributor) external returns(bool) {
-        if(crowdsaleFinished) {
-            return false;
-        }
-        if(!crowdsale.isContributorInLists(contributor)) {
-            return false;
-        }
-        if(contributions[contributor] == 0) {
-            return false;
-        }
-        return true;
-    }
-
+    /**
+     * @dev Complete contribution after if user is whitelisted
+     */
     function completeContribution(address contributor) external {
         require(!crowdsaleFinished);
         require(crowdsale.isContributorInLists(contributor));
@@ -79,11 +91,9 @@ contract ReservationFund is ICrowdsaleReservationFund, Ownable, SafeMath {
         TransferToFund(contributor, etherAmount);
     }
 
-    function onCrowdsaleEnd() external {
-        crowdsaleFinished = true;
-        FinishCrowdsale();
-    }
-
+    /**
+     * @dev Refund payments if crowdsale is finalized
+     */
     function refundPayment(address contributor) public {
         require(crowdsaleFinished);
         require(contributions[contributor] > 0 || tokensToIssue[contributor] > 0);

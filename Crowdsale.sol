@@ -430,6 +430,17 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
     }
 
     /**
+     * @dev Force crowdsale refund
+     */
+    function forceCrowdsaleRefund() public onlyOwner {
+        pause();
+        fund.enableCrowdsaleRefund();
+        reservationFund.onCrowdsaleEnd();
+        token.finishIssuance();
+        bnbRefundEnabled = true;
+    }
+
+    /**
      * @dev Finalize crowdsale if we reached hard cap or current time > SALE_END_TIME
      */
     function finalizeCrowdsale() public onlyOwner {
@@ -469,15 +480,16 @@ contract TheAbyssDAICO is Ownable, SafeMath, Pausable, ISimpleCrowdsale {
             uint256 bountyTokenAmount = safeDiv(suppliedTokenAmount, 60); // 1%
             token.issue(bountyTokenWallet, bountyTokenAmount);
 
+            token.finishIssuance();
             token.setAllowTransfers(true);
 
         } else if(now >= SALE_END_TIME) {
             // Enable fund`s crowdsale refund if soft cap is not reached
             fund.enableCrowdsaleRefund();
             reservationFund.onCrowdsaleEnd();
+            token.finishIssuance();
             bnbRefundEnabled = true;
         }
-        token.finishIssuance();
     }
 
     /**

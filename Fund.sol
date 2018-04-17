@@ -30,6 +30,7 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
     address public companyTokenWallet;
     address public advisorTokenWallet;
     address public lockedTokenAddress;
+    address public refundManager;
 
     uint256 public tap;
     uint256 public lastWithdrawTime = 0;
@@ -61,6 +62,7 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
         address _reserveTokenWallet,
         address _bountyTokenWallet,
         address _advisorTokenWallet,
+        address _refundManager,
         address[] _owners
     ) public
     {
@@ -71,6 +73,7 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
         reserveTokenWallet = _reserveTokenWallet;
         bountyTokenWallet = _bountyTokenWallet;
         advisorTokenWallet = _advisorTokenWallet;
+        refundManager = _refundManager;
         _setOwners(_owners);
     }
 
@@ -142,6 +145,21 @@ contract Fund is ICrowdsaleFund, SafeMath, MultiOwnable {
         token.destroy(msg.sender, token.balanceOf(msg.sender));
         msg.sender.transfer(refundAmount);
         RefundContributor(msg.sender, refundAmount, now);
+    }
+
+    /**
+    * @dev Function is called by owner to refund payments if crowdsale failed to reach soft cap
+    */
+    function autoRefundCrowdsaleContributor(address contributorAddress) external {
+        require(ownerByAddress[msg.sender] == true || msg.sender == refundManager);
+        require(state == FundState.CrowdsaleRefund);
+        require(contributions[contributorAddress] > 0);
+
+        uint256 refundAmount = contributions[contributorAddress];
+        contributions[contributorAddress] = 0;
+        token.destroy(contributorAddress, token.balanceOf(contributorAddress));
+        contributorAddress.transfer(refundAmount);
+        RefundContributor(contributorAddress, refundAmount, now);
     }
 
     /**
